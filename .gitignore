@@ -1,0 +1,16 @@
+*.zip
+*.tar
+*.gz
+*.bz2
+*.7z
+*.json
+*.jsonl
+
+tat_docs/
+
+.vscode/
+__pycache__/
+.idea/
+.DS_Store
+
+phase1\chunks.jsonl
