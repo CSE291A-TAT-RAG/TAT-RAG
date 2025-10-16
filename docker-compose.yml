@@ -1,0 +1,103 @@
+services:
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__WEB_UI__ENABLED=true
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # Ollama LLM service
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+  #   networks:
+  #     - rag-network
+  #   restart: unless-stopped
+    # GPU support (uncomment if you have NVIDIA GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # RAG application
+  rag-app:
+    build: .
+    container_name: rag-app
+    depends_on:
+      - qdrant
+    environment:
+      # Qdrant configuration
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=documents
+
+      # LLM configuration
+      - LLM_PROVIDER=ollama
+      - LLM_MODEL=qwen3:8b
+      - LLM_TEMPERATURE=0.7
+      - LLM_MAX_TOKENS=1000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+
+      # Embedding configuration
+      - EMBEDDING_PROVIDER=local
+      - EMBEDDING_MODEL=BAAI/bge-m3
+      - EMBEDDING_BATCH_SIZE=100
+      - EMBEDDING_DEVICE=cuda
+      - EMBEDDING_CACHE_DIR=/app/models
+
+      # RAG configuration
+      - RAG_TOP_K=5
+      - CHUNK_SIZE=1000
+      - CHUNK_OVERLAP=200
+
+      # OpenAI (optional, for cloud mode)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./models:/app/models              # Mount models directory
+      - ./src:/app/src                    # Mount source code for development
+      - ./tests:/app/tests                # Mount tests directory
+      - ./examples:/app/examples          # Mount examples directory
+      - ./main.py:/app/main.py            # Mount main script
+      - ./scripts:/app/scripts            # Mount scripts directory
+    networks:
+      - rag-network
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # Keep container running for interactive use
+    command: tail -f /dev/null
+
+volumes:
+  qdrant_storage:
+    driver: local
+  ollama_models:
+    driver: local
+
+networks:
+  rag-network:
+    driver: bridge

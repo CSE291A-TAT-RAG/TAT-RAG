@@ -1,0 +1,9 @@
+question,ground_truth
+"What is RAG?","RAG stands for Retrieval-Augmented Generation, a technique that combines information retrieval with text generation to produce more accurate and factual answers"
+"What is Qdrant?","Qdrant is a high-performance vector database designed specifically for storing and searching high-dimensional vectors"
+"What is faithfulness in RAGAS?","Faithfulness measures how factually accurate the generated answer is based on the retrieved context"
+"What is answer relevancy?","Answer relevancy evaluates how well the answer addresses the user's question"
+"What is context precision?","Context precision assesses the quality of retrieved documents and measures if most retrieved documents are actually relevant to the question"
+"What embedding models are mentioned?","BGE-M3 is a multilingual embedding model, OpenAI text-embedding-ada-002 is a cloud-based service, and Sentence Transformers are open-source models"
+"What are the benefits of RAG systems?","RAG systems reduce hallucinations, provide up-to-date information, offer transparency through citations, enable domain-specific knowledge without fine-tuning, and are cost-effective"
+"What are the two main steps in RAG?","The RAG process consists of retrieval and generation steps"
