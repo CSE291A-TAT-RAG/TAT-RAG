@@ -54,7 +54,6 @@ htmlcov/
 logs/
 
 # Output
-output/
 results/
 
 # Data
