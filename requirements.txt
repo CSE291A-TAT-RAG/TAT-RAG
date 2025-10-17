@@ -1,0 +1,6 @@
+# python == 3.12
+pymupdf
+pdfplumber
+camelot
+tiktoken
+# tabula
