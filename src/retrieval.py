@@ -33,15 +33,18 @@ class RAGPipeline:
         self.llm_provider = create_llm_provider(
             provider_type=config.llm.provider,
             model_name=config.llm.model_name,
-            api_key=config.llm.api_key,
-            base_url=config.llm.ollama_base_url
+            base_url=config.llm.ollama_base_url,
+            region_name=config.llm.aws_region,
+            aws_access_key_id=config.llm.aws_access_key_id,
+            aws_secret_access_key=config.llm.aws_secret_access_key,
+            aws_session_token=config.llm.aws_session_token,
+            aws_profile_name=config.llm.aws_profile_name
         )
 
         # Initialize embedding provider
         self.embedding_provider = create_embedding_provider(
             provider_type=config.embedding.provider,
             model_name=config.embedding.model_name,
-            api_key=config.embedding.api_key,
             device=config.embedding.device,
             cache_dir=config.embedding.cache_dir
         )

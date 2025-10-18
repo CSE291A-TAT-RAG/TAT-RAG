@@ -42,33 +42,13 @@ services:
     container_name: rag-app
     depends_on:
       - qdrant
+    env_file:
+      - .env
     environment:
-      # Qdrant configuration
+      # Override Qdrant host for Docker networking
       - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - QDRANT_COLLECTION=documents
-
-      # LLM configuration
-      - LLM_PROVIDER=ollama
-      - LLM_MODEL=qwen3:8b
-      - LLM_TEMPERATURE=0.7
-      - LLM_MAX_TOKENS=1000
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-
-      # Embedding configuration
-      - EMBEDDING_PROVIDER=local
-      - EMBEDDING_MODEL=BAAI/bge-m3
-      - EMBEDDING_BATCH_SIZE=100
-      - EMBEDDING_DEVICE=cuda
+      # Override embedding cache directory for Docker
       - EMBEDDING_CACHE_DIR=/app/models
-
-      # RAG configuration
-      - RAG_TOP_K=5
-      - CHUNK_SIZE=1000
-      - CHUNK_OVERLAP=200
-
-      # OpenAI (optional, for cloud mode)
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     volumes:
       - ./data:/app/data
       - ./output:/app/output

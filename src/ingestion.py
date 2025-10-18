@@ -38,7 +38,6 @@ class DocumentIngestion:
         self.embedding_provider = create_embedding_provider(
             provider_type=config.embedding.provider,
             model_name=config.embedding.model_name,
-            api_key=config.embedding.api_key,
             device=config.embedding.device,
             cache_dir=config.embedding.cache_dir
         )

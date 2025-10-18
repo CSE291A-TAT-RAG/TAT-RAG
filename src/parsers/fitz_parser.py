@@ -115,11 +115,18 @@ class FitzParser(BaseParser):
             blocks = sorted(blocks, key=lambda b: (round(b[1], 2), round(b[0], 2)))
 
             paragraphs = []
-            for block in blocks:
-                if len(block) < 5:
+            block_positions = []  # Store position info for each paragraph
+
+            for block_idx, block in enumerate(blocks):
+                if len(block) < 7:  # Ensure we have all block components
                     continue
 
+                # Extract block coordinates and metadata
+                x0, y0, x1, y1 = block[0], block[1], block[2], block[3]
                 raw_text = block[4] or ""
+                block_no = block[5]
+                block_type = block[6]
+
                 normalized_text = self._normalize_block_text(raw_text)
 
                 if not normalized_text:
@@ -127,10 +134,23 @@ class FitzParser(BaseParser):
 
                 # Split block into paragraphs by blank lines
                 paras = self._split_into_paragraphs(normalized_text)
-                paragraphs.extend(paras)
+
+                # Store position info for each paragraph from this block
+                for para in paras:
+                    paragraphs.append(para)
+                    block_positions.append({
+                        "block_no": block_no,
+                        "block_type": block_type,
+                        "bbox": {
+                            "x0": round(x0, 2),
+                            "y0": round(y0, 2),
+                            "x1": round(x1, 2),
+                            "y1": round(y1, 2)
+                        }
+                    })
 
             # Create document entries for each paragraph
-            for para_idx, para in enumerate(paragraphs, start=1):
+            for para_idx, (para, position) in enumerate(zip(paragraphs, block_positions), start=1):
                 if len(para.strip()) < self.min_paragraph_length:
                     continue
 
@@ -141,7 +161,11 @@ class FitzParser(BaseParser):
                         "page": page_idx + 1,  # 1-based page numbering
                         "para_index": para_idx,
                         "char_count": len(para),
-                        "parser": "fitz"
+                        "parser": "fitz",
+                        # Original document position info
+                        "block_no": position["block_no"],
+                        "block_type": position["block_type"],
+                        "bbox": position["bbox"]
                     }
                 })
 

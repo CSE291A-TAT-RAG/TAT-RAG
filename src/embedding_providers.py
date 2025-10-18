@@ -1,11 +1,9 @@
-"""Embedding provider abstraction layer supporting OpenAI and local models."""
+"""Embedding provider abstraction layer for local models."""
 
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional
 import warnings
-
-from openai import OpenAI
 
 # Suppress FutureWarnings from sentence-transformers
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -52,53 +50,6 @@ class EmbeddingProvider(ABC):
             Embedding dimension
         """
         pass
-
-
-class OpenAIEmbeddingProvider(EmbeddingProvider):
-    """OpenAI embedding provider."""
-
-    def __init__(self, api_key: str, model_name: str = "text-embedding-ada-002"):
-        """
-        Initialize OpenAI embedding provider.
-
-        Args:
-            api_key: OpenAI API key
-            model_name: Model name (e.g., text-embedding-ada-002, text-embedding-3-small)
-        """
-        self.client = OpenAI(api_key=api_key)
-        self.model_name = model_name
-
-        # Set dimension based on model
-        if "ada-002" in model_name:
-            self.dimension = 1536
-        elif "text-embedding-3-small" in model_name:
-            self.dimension = 1536
-        elif "text-embedding-3-large" in model_name:
-            self.dimension = 3072
-        else:
-            self.dimension = 1536  # default
-
-        logger.info(f"Initialized OpenAI embedding provider with model: {model_name}")
-
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using OpenAI API."""
-        response = self.client.embeddings.create(
-            input=texts,
-            model=self.model_name
-        )
-        return [item.embedding for item in response.data]
-
-    def embed_query(self, query: str) -> List[float]:
-        """Generate embedding for a single query."""
-        response = self.client.embeddings.create(
-            input=query,
-            model=self.model_name
-        )
-        return response.data[0].embedding
-
-    def get_dimension(self) -> int:
-        """Get embedding dimension."""
-        return self.dimension
 
 
 class LocalEmbeddingProvider(EmbeddingProvider):
@@ -179,9 +130,9 @@ def create_embedding_provider(
     Factory function to create embedding provider.
 
     Args:
-        provider_type: Type of provider ('openai' or 'local')
+        provider_type: Type of provider ('local' only)
         model_name: Model name
-        api_key: API key (for OpenAI)
+        api_key: API key (deprecated, not used)
         device: Device (for local models)
         cache_dir: Cache directory (for local models)
 
@@ -190,13 +141,7 @@ def create_embedding_provider(
     """
     provider_type = provider_type.lower()
 
-    if provider_type == "openai":
-        if not api_key:
-            raise ValueError("OpenAI provider requires an API key")
-        return OpenAIEmbeddingProvider(api_key=api_key, model_name=model_name)
-
-    elif provider_type == "local":
+    if provider_type == "local":
         return LocalEmbeddingProvider(model_name=model_name, device=device, cache_dir=cache_dir)
-
     else:
-        raise ValueError(f"Unknown provider type: {provider_type}. Use 'openai' or 'local'")
+        raise ValueError(f"Unknown provider type: {provider_type}. Use 'local'")

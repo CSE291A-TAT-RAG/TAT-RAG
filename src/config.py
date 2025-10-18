@@ -18,29 +18,30 @@ class QdrantConfig:
 @dataclass
 class LLMConfig:
     """Large Language Model configuration."""
-    # Provider: 'openai' or 'ollama'
+    # Provider: 'ollama' or 'bedrock'
     provider: str = os.getenv("LLM_PROVIDER", "ollama")
     model_name: str = os.getenv("LLM_MODEL", "qwen2.5:8b")
     temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "1000"))
 
-    # OpenAI specific
-    api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
-
     # Ollama specific
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+    # AWS Bedrock specific
+    aws_region: str = os.getenv("AWS_REGION", "us-east-1")
+    aws_access_key_id: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
+    aws_session_token: Optional[str] = os.getenv("AWS_SESSION_TOKEN")
+    aws_profile_name: Optional[str] = os.getenv("AWS_PROFILE_NAME")
 
 
 @dataclass
 class EmbeddingConfig:
     """Embedding model configuration."""
-    # Provider: 'openai' or 'local'
+    # Provider: 'local' only
     provider: str = os.getenv("EMBEDDING_PROVIDER", "local")
     model_name: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
     batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "100"))
-
-    # OpenAI specific
-    api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
 
     # Local model specific
     device: Optional[str] = os.getenv("EMBEDDING_DEVICE", None)  # 'cuda', 'cpu', or None for auto

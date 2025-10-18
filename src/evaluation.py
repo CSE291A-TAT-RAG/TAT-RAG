@@ -16,8 +16,10 @@ from ragas.metrics import (
 )
 
 from langchain_ollama import ChatOllama
+from langchain_aws import ChatBedrock
 
 from .retrieval import RAGPipeline
+from .llm_providers import OllamaProvider, BedrockProvider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -113,19 +115,30 @@ class RAGEvaluator:
                     # answer_correctness, # Disabled for smaller models that struggle with JSON output
                 ])
 
-        # Create a compatible ChatOllama instance for ragas
+        # Create a compatible LangChain chat model for ragas based on provider type
         llm_provider = self.rag_pipeline.llm_provider
-        chat_ollama = ChatOllama(
-            model=llm_provider.model_name,
-            base_url=llm_provider.base_url
-        )
+
+        if isinstance(llm_provider, OllamaProvider):
+            chat_model = ChatOllama(
+                model=llm_provider.model_name,
+                base_url=llm_provider.base_url
+            )
+        elif isinstance(llm_provider, BedrockProvider):
+            # Bedrock with Claude models (native ChatBedrock support)
+            chat_model = ChatBedrock(
+                model_id=llm_provider.model_name,
+                region_name=llm_provider.region_name,
+                client=llm_provider.client
+            )
+        else:
+            raise ValueError(f"Unsupported LLM provider type: {type(llm_provider)}")
 
         # Run evaluation
         try:
             result = evaluate(
                 dataset,
                 metrics=metrics,
-                llm=chat_ollama,
+                llm=chat_model,
                 embeddings=self.rag_pipeline.embedding_provider
             )
             logger.info("Evaluation completed successfully")

@@ -57,6 +57,9 @@ htmlcov/
 output/
 *.log
 
+# Models (downloaded inside container)
+models/
+
 # OS
 .DS_Store
 Thumbs.db

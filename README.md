@@ -4,13 +4,13 @@ A complete, production-ready RAG (Retrieval-Augmented Generation) pipeline with 
 
 ## ✨ Key Features
 
-- **🔄 Flexible LLM Providers**: Ollama (local), OpenAI, or hybrid mode
+- **🔄 Flexible LLM Providers**: Ollama (local) or AWS Bedrock (cloud)
 - **🎯 Retrieve-Only Mode**: Perfect for Mac/CPU-only users - no LLM required!
 - **📚 Document Ingestion**: Support for TXT and PDF files
 - **📄 Advanced PDF Parsing**: Dual parser support
   - **LangChain**: Fast, simple loading for general documents
   - **Fitz (PyMuPDF)**: Advanced parsing with better text extraction for financial reports
-- **🔍 Semantic Search**: BGE-M3 multilingual embeddings (local or cloud)
+- **🔍 Semantic Search**: BGE-M3 multilingual embeddings (local)
 - **🤖 RAG Pipeline**: Context-aware answer generation
 - **📊 RAGAS Evaluation**: Comprehensive quality metrics
 - **🐳 Docker Ready**: Fully containerized with optional GPU support
@@ -33,7 +33,7 @@ The project operates in three main pipelines:
      +--------------------------------------------> [Retrieved Context]
      |                                                          |
      +--------------------------------------------> [llm_providers.py] -> [LLM]
-                                                      (Context + Query)    (Ollama/OpenAI)
+                                                      (Context + Query)    (Ollama/Bedrock)
                                                                              |
                                                                              V
                                                                       [Final Answer]
@@ -150,23 +150,57 @@ docker-compose exec rag-app pytest
 
 ## ⚙️ Configuration
 
-Copy `.env.example` to `.env` and customize:
+### 🚀 Quick Setup (First Time)
 
+**Step 1: Create your configuration file**
 ```bash
-# Default: Full Local Mode
-LLM_PROVIDER=ollama
-LLM_MODEL=qwen3:8b
-EMBEDDING_PROVIDER=local
-EMBEDDING_MODEL=BAAI/bge-m3
-
-# Cloud Mode
-LLM_PROVIDER=
-LLM_MODEL=
-EMBEDDING_PROVIDER=
-EMBEDDING_MODEL=
-OPENAI_API_KEY=
+# Copy the template to create your .env file
+cp .env.example .env
 ```
 
+**Step 2: Choose your LLM provider** (edit `.env`)
+
+**Option A: Local Ollama (Default)**
+```bash
+# Already set by default in .env, no changes needed!
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen3:8b
+```
+
+**Option B: AWS Bedrock (Claude)**
+```bash
+# Edit .env and change these lines:
+LLM_PROVIDER=bedrock
+LLM_MODEL=anthropic.claude-3-sonnet-20240229-v1:0
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_actual_access_key
+AWS_SECRET_ACCESS_KEY=your_actual_secret_key
+```
+
+**Step 3: Start Docker**
+```bash
+docker-compose up -d
+```
+
+> **Note:** Your `.env` file is git-ignored for security. Never commit AWS credentials!
+
+### Switching Between Providers
+
+Simply edit your `.env` file and change the `LLM_PROVIDER` line, then restart Docker:
+
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+### Available Models
+
+**Ollama Models:**
+- `qwen3:8b`
+- Any model from [Ollama library](https://ollama.com/library)
+
+**AWS Bedrock Models:**
+- `anthropic.claude-3-haiku-20240307-v1:0` (Fastest, Cheapest)
 
 ## 📊 RAGAS Evaluation Metrics
 
@@ -215,8 +249,8 @@ Then set: `EMBEDDING_DEVICE=cuda` in `.env`
 TAT-RAG/
 ├── src/                      # Core application logic
 │   ├── config.py             # Manages all configurations from .env file
-│   ├── llm_providers.py      # Interface for different LLMs (Ollama, OpenAI)
-│   ├── embedding_providers.py# Interface for embedding models (local BGE, OpenAI)
+│   ├── llm_providers.py      # Interface for different LLMs (Ollama, Bedrock)
+│   ├── embedding_providers.py# Interface for embedding models (local BGE)
 │   ├── parsers/              # Document parsing strategies
 │   │   ├── base.py           # Abstract parser interface
 │   │   ├── langchain_parser.py  # Simple, fast parser
@@ -236,15 +270,16 @@ TAT-RAG/
 ├── docker-compose.yml        # Defines and orchestrates all services (Qdrant, Ollama, App)
 ├── Dockerfile                # Builds the Python application container
 ├── requirements.txt          # Python package dependencies
-├── .env.example              # Template for environment variable configuration
+├── .env.example              # Template for environment configuration (commit this)
+├── .env                      # Your actual configuration (git-ignored, NEVER commit!)
 └── README.md                 # This file
 ```
 
 ## 🌟 Tech Stack
 
 - **Vector Database**: Qdrant (cosine similarity)
-- **LLM**: Ollama (Qwen/Llama/Mistral) or OpenAI (GPT-3.5/4)
-- **Embeddings**: BGE-M3 (local) or OpenAI ada-002
+- **LLM**: Ollama (Qwen/Llama/Mistral) or AWS Bedrock (Claude)
+- **Embeddings**: BGE-M3 (local)
 - **Evaluation**: RAGAS framework
 - **Document Loading**: LangChain loaders + PyMuPDF
 - **Deployment**: Docker & Docker Compose
