@@ -1,6 +1,9 @@
 # python == 3.12
 pymupdf
-pdfplumber
-camelot
+# pdfplumber
+# camelot
 tiktoken
-# tabula
+tabula-py
+pandas
+numpy
+jpype1

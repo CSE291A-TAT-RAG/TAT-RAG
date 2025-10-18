@@ -5,49 +5,22 @@ from pathlib import Path
 import re, hashlib
 
 import fitz
-import pdfplumber
+import tabula
+import tiktoken
 
-# ---------- 性能相关开关 ----------
-FAST_MODE = True                     # [NEW-FAST] 快速模式：只在疑似有表格的页做表格抽取
+import json
+
+
 TABLES_ENABLED = True                # [NEW-FAST] 是否启用表格抽取通道（整体开关）
-TABLE_FLAVOR = "stream"              # [NEW-FAST] Camelot 优先使用 stream（更快更鲁棒）
-TRY_LATTICE_FALLBACK = True          # [NEW-FAST] 对候选页 stream 无果时，再尝试 lattice 少量页
-CALC_TOKENS_STRICT = False           # [NEW-FAST] 是否用 tiktoken 精确计数；关掉用近似法更快
 
-# for table extraction
-try:
-    import camelot  # for tables (lattice/stream)
-    _has_camelot = True
-except Exception:
-    _has_camelot = False
+CSV_PATH = "./csvs/"
 
-# [保持禁用 tabula]
-# try:
-#     import tabula  # requires Java
-#     _has_tabula = True
-# except Exception:
-#     _has_tabula = False
+def tok_len(s: str) -> int: return max(1, len(s)//4)
 
-# tokenizer
-try:
-    import tiktoken
-    _enc = tiktoken.get_encoding("cl100k_base")
-    def tok_len(s: str) -> int: return len(_enc.encode(s))
-    def tok_split(s: str, n: int) -> List[str]:
-        ids = _enc.encode(s)
-        return [_enc.decode(ids[i:i+n]) for i in range(0, len(ids), n)]
-except Exception:
-    def tok_len(s: str) -> int: return max(1, len(s)//4)
-    def tok_split(s: str, n: int) -> List[str]:
-        step = n*4
-        return [s[i:i+step] for i in range(0, len(s), step)]
-
-# [NEW-FAST] 更快的 token 计数包装（允许近似法）
-def tok_count(s: str) -> int:
-    if CALC_TOKENS_STRICT:
-        return tok_len(s)
-    # 近似：字数/4（与上面 fallback 保持一致），大幅提速
-    return max(1, len(s) // 4)
+_enc = tiktoken.get_encoding("cl100k_base")
+def tok_split(s: str, n: int) -> List[str]:
+    ids = _enc.encode(s)
+    return [_enc.decode(ids[i:i+n]) for i in range(0, len(ids), n)]
 
 def md5(s: str) -> str: return hashlib.md5(s.encode("utf-8")).hexdigest()
 
@@ -59,26 +32,22 @@ class ParagraphBlock:
 
 @dataclass
 class TableBlock:
-    rows: List[List[str]]  # rows[0] is table header
+    csv_file_name: str
     page: int
-    title: str
-    currency: Optional[str] = None
-    unit: Optional[str] = None
+    table_id_for_page: int
 
 HEADING_PATTERNS = [
-    r"^Item\s+1A?\b.*",  # Item 1 / 1A Risk Factors
-    r"^Item\s+7\b.*",    # Item 7 MD&A
-    r"^Item\s+7A\b.*",
-    r"^Item\s+8\b.*",    # Financial Statements and Supplementary Data
-    r"^Management.?s Discussion.*",
-    r"^Consolidated\s+(Statements?|Balance Sheets?|Cash Flows?).*",
-    r"^Notes?\s+to\s+Consolidated\s+Financial\s+Statements.*",
-    r"^Risk\s+Factors.*",
-] # TODO
-HEADING_RE = re.compile("|".join(HEADING_PATTERNS), re.I)
+    r"^\s*Table\s+of\s+Contents\b.*",
+    r"^\s*Item\s+\d+[A-Z]?\b.*",
+    r"^\s*Management[’']?s\s+Discussion\b.*",
+    r"^\s*Consolidated\s+(Statements?|Statement)\b.*",
+    r"^\s*Notes?\s+to\s+Consolidated\s+Financial\s+Statements\b.*",
+    r"^\s*Report\s+of\s+Independent\b.*",
+    r"^\s*Exhibit\s+Index\b.*",
+    r"^\s*Signatures\b.*",
+]
 
-CURRENCY_HINT = re.compile(r"\b(USD|US\$|\$|HKD|EUR|GBP|RMB|CNY)\b")
-UNIT_HINT = re.compile(r"\b(thousands|millions|billions|’000|000s)\b", re.I)
+HEADING_RE = re.compile("|".join(HEADING_PATTERNS), re.I)
 
 # -------------------------------------------------------------------
 # ### CHANGE 1: 多列页面处理（列检测 + 列内排序 + 段落切分）
@@ -150,7 +119,7 @@ def _blocks_to_paragraphs(blocks: List[Tuple[float,float,float,float,str]]) -> L
 def extract_paragraphs_with_sections(pdf_path: str) -> List[ParagraphBlock]:
     blocks: List[ParagraphBlock] = []
     doc = fitz.open(pdf_path)
-    current_section = "Front"
+    current_section = "None"
     for pno in range(len(doc)):
         page = doc[pno]
 
@@ -200,124 +169,38 @@ def extract_paragraphs_with_sections(pdf_path: str) -> List[ParagraphBlock]:
     return blocks
 
 # -------------------------------------------------------------------
-# ### CHANGE 2: 表格抽取增强 + 提速（候选页检测 + stream优先 + 少量lattice兜底）
+# ### table extraction
 # -------------------------------------------------------------------
 
-def _rows_clean(rows: List[List[str]]) -> List[List[str]]:  # [NEW]
-    """Basic cleanup for rows: join multiline cells, strip whitespace, drop all-empty rows."""
-    out = []
-    for row in rows:
-        if row is None:
-            continue
-        clean = [((c or "").replace("\n", " ").strip()) for c in row]
-        if any(cell for cell in clean):
-            out.append(clean)
-    return out
-
-# [NEW-FAST] 轻量级“是否疑似有表格”页级检测
-TABLE_TEXT_HINT = re.compile(
-    r"\b(Consolidated|Balance\s+Sheets?|Statements?|Cash\s+Flows?|Total|Net|%|\$)\b",
-    re.I
-)
-
-def _page_has_table_hint(plumber_page: "pdfplumber.page.Page") -> bool:  # [NEW-FAST]
-    """
-    启发式：
-      - 线/矩形/曲线对象较多，或者
-      - 文本包含典型表头关键词/货币符号/百分号
-    命中任一则认为该页“疑似有表格”。
-    """
-    try:
-        line_ct = len(getattr(plumber_page, "lines", []) or [])
-        rect_ct = len(getattr(plumber_page, "rects", []) or [])
-        curve_ct = len(getattr(plumber_page, "curves", []) or [])
-        if line_ct + rect_ct + curve_ct >= 8:  # 阈值可调
-            return True
-        txt = plumber_page.extract_text() or ""
-        if TABLE_TEXT_HINT.search(txt):
-            return True
-    except Exception:
-        return False
-    return False
-
-def extract_tables(pdf_path: str) -> List[TableBlock]:
-    if not TABLES_ENABLED:                            # [NEW-FAST]
-        return []                                     # [NEW-FAST]
-
+def extract_tables(pdf_path: str, doc_id: str) -> List[TableBlock]:
     tbls: List[TableBlock] = []
 
-    # 先用 pdfplumber 做“页级候选检测”，只对候选页跑后续重抽取
-    candidate_pages: List[int] = []                   # [NEW-FAST]
-    with pdfplumber.open(pdf_path) as pdf:           # [NEW-FAST]
-        for pno, page in enumerate(pdf.pages, start=1):
-            if (not FAST_MODE) or _page_has_table_hint(page):
-                candidate_pages.append(pno)
+    doc = fitz.open(pdf_path)
+    tbls = []
+    for pno in range(len(doc)):  # 0-based
+        dfs = tabula.read_pdf(pdf_path, pages=pno+1, multiple_tables=True, stream=True)
+        if not dfs:
+            continue
+        for df_i, df in enumerate(dfs):
+            fname = f"{doc_id}_page_{pno}_table_{df_i}.csv"
+            path = Path(CSV_PATH) / fname
 
-        # 如果没有候选页，直接返回（大幅提速）
-        if not candidate_pages:                       # [NEW-FAST]
-            return []                                 # [NEW-FAST]
-
-        pages_str = ",".join(map(str, candidate_pages))
-
-        # 1) Camelot stream 优先（仅候选页）
-        if _has_camelot:                              # [NEW-FAST]
-            try:
-                t_stream = camelot.read_pdf(pdf_path, flavor=TABLE_FLAVOR, pages=pages_str)
-                for t in t_stream:
-                    rows = [list(map(str, r)) for r in t.df.values.tolist()]
-                    rows = _rows_clean(rows)
-                    if rows:
-                        title = rows[0][0].strip() if rows[0] and len(rows[0][0]) < 120 else "Table"
-                        meta = " ".join(sum(rows[:3], []))[:500]
-                        currency = (CURRENCY_HINT.search(meta).group(0) if CURRENCY_HINT.search(meta) else None)
-                        unit = (UNIT_HINT.search(meta).group(0) if UNIT_HINT.search(meta) else None)
-                        page_no = getattr(t, "page", 0) or 0
-                        page_no = int(page_no) if page_no else candidate_pages[0]
-                        tbls.append(TableBlock(rows=rows, page=page_no, title=title, currency=currency, unit=unit))
-            except Exception:
-                pass
-
-            # 1b) 对“少量候选页”再尝试 lattice 兜底（仅当 stream 几乎没结果时）
-            if TRY_LATTICE_FALLBACK and len(tbls) == 0:   # [NEW-FAST]
-                try:
-                    t_lat = camelot.read_pdf(pdf_path, flavor="lattice", pages=pages_str)
-                    for t in t_lat:
-                        rows = [list(map(str, r)) for r in t.df.values.tolist()]
-                        rows = _rows_clean(rows)
-                        if rows:
-                            title = rows[0][0].strip() if rows[0] and len(rows[0][0]) < 120 else "Table"
-                            meta = " ".join(sum(rows[:3], []))[:500]
-                            currency = (CURRENCY_HINT.search(meta).group(0) if CURRENCY_HINT.search(meta) else None)
-                            unit = (UNIT_HINT.search(meta).group(0) if UNIT_HINT.search(meta) else None)
-                            page_no = getattr(t, "page", 0) or 0
-                            page_no = int(page_no) if page_no else candidate_pages[0]
-                            tbls.append(TableBlock(rows=rows, page=page_no, title=title, currency=currency, unit=unit))
-                except Exception:
-                    pass
-
-        # 2) pdfplumber 作为补充（仅候选页），即使 Camelot 有结果也可以补充一些未抓到的表
-        try:
-            for pno in candidate_pages:
-                page = pdf.pages[pno-1]
-                tables = page.extract_tables()
-                for rows in tables:
-                    rows = _rows_clean(rows)
-                    if rows:
-                        meta = " ".join(sum(rows[:2], []))[:500]
-                        currency = (CURRENCY_HINT.search(meta).group(0) if CURRENCY_HINT.search(meta) else None)
-                        unit = (UNIT_HINT.search(meta).group(0) if UNIT_HINT.search(meta) else None)
-                        tbls.append(TableBlock(rows=rows, page=pno, title="Table", currency=currency, unit=unit))
-        except Exception:
-            pass
-
+            df.to_csv(path, compression="infer")
+            tbls.append(TableBlock(
+                csv_file_name=str(path),
+                page=pno+1,
+                table_id_for_page=df_i,
+            ))
+        
     return tbls
+    
 
 # -------------------------------------------------------------------
-# 原有逻辑保留：chunk（文本与表格）
+# chunking
 # -------------------------------------------------------------------
 
 def chunk_paragraph(text: str, size: int = 640, overlap: int = 96) -> List[str]:
-    if tok_count(text) <= size:               # [MOD-FAST] tok_len -> tok_count（可近似）
+    if tok_len(text) <= size:
         return [text]
     step = max(1, size - overlap)
     parts = tok_split(text, step)
@@ -325,32 +208,18 @@ def chunk_paragraph(text: str, size: int = 640, overlap: int = 96) -> List[str]:
     prev_tail = ""
     for i, p in enumerate(parts):
         cur = (prev_tail + p) if i > 0 else p
-        if tok_count(cur) > size:             # [MOD-FAST]
+        if tok_len(cur) > size:
             cur = tok_split(cur, size)[0]
         res.append(cur)
-        tail_tokens = tok_split(cur, max(1, tok_count(cur)-overlap))  # [MOD-FAST]
+        tail_tokens = tok_split(cur, max(1, tok_len(cur)-overlap))
         prev_tail = tail_tokens[-1] if tail_tokens else ""
     return res
-
-def chunk_table_by_rows(rows: List[List[str]], window: int = 4) -> List[List[List[str]]]:
-    if not rows:
-        return []
-    header = rows[0]
-    data = rows[1:]
-    if not data:
-        return [rows]
-    chunks = []
-    for i in range(0, len(data), window):
-        block = [header] + data[i:i+window]
-        chunks.append(block)
-    return chunks
 
 def build_chunks_for_financial_report(
     pdf_path: str,
     doc_meta: Dict,
     para_size: int = 640,
     para_overlap: int = 96,
-    table_window: int = 4
 ) -> List[Dict]:
     out: List[Dict] = []
     doc_id = doc_meta.get("doc_id") or md5(pdf_path)
@@ -370,48 +239,54 @@ def build_chunks_for_financial_report(
                 "page": pb.page,
                 "order": order,
                 "inner_index": j,
-                "tokens": tok_count(s),     # [MOD-FAST]
+                "tokens": tok_len(s),
             }
             md["hash"] = md5(f"{doc_id}|p|{pb.page}|{order}|{j}|{s[:80]}")
             out.append({"text": s, "metadata": md})
         order += 1
 
-    tables = extract_tables(pdf_path)
-    for t_idx, tb in enumerate(tables):
-        t_chunks = chunk_table_by_rows(tb.rows, window=table_window)
-        for k, block in enumerate(t_chunks):
-            tsv = "\n".join(["\t".join(row) for row in block])
+    if TABLES_ENABLED:
+        tables = extract_tables(pdf_path, doc_id)
+        for t_idx, tb in enumerate(tables):
             md = {
                 **doc_meta,
                 "doc_id": doc_id,
                 "type": "table",
-                "section_path": f"{tb.title}",
                 "page": tb.page,
+                "inner_index": tb.table_id_for_page,
                 "table_id": f"T{t_idx}",
-                "table_chunk": k,
-                "headers": block[0],
-                "currency": tb.currency,
-                "unit": tb.unit,
-                "tokens": tok_count(tsv),  # [MOD-FAST]
             }
-            md["headers_hash"] = md5("|".join(md["headers"]))
-            md["hash"] = md5(f"{doc_id}|t|{tb.page}|{t_idx}|{k}|{tsv[:80]}")
-            out.append({"text": tsv, "metadata": md})
+            md["hash"] = md5(f"{doc_id}|t|{tb.page}|{tb.table_id_for_page}|{t_idx}")
+            out.append({"text": tb.csv_file_name, "metadata": md})
+
     return out
 
-# example usage (可保留/可移除)
+# example usage
 if __name__ == "__main__":
-    from pathlib import Path
-    import json
+    Path(CSV_PATH).mkdir(parents=True, exist_ok=True)
+
     # set data folder path
-    data_folder = Path("./tat_docs")
-    pdf_files = sorted(data_folder.glob("*.pdf")) 
+    data_folder = Path("../tat_docs_filtered/")
+    pdf_files = sorted(data_folder.glob("*.pdf"))
+
+    exclude_file_path = "./not_included.txt"
+    exclude_files = set()
+
+    if Path(exclude_file_path).exists():
+        with open(exclude_file_path, 'r') as f:
+            exclude_files = {f"{line.strip()}.pdf" for line in f if line.strip()}
+
+    filtered_pdf_files = [f for f in pdf_files if f.name not in exclude_files]
+
     total_chunks = []
 
     print(f"[INFO] Found {len(pdf_files)} PDF files under {data_folder}")
-    for idx, f in enumerate(pdf_files, start=1):
+    print(f"[INFO] Excluded {len(pdf_files) - len(filtered_pdf_files)} PDF files")
+    print(f"[INFO] Remaining {len(filtered_pdf_files)} PDF files to process")
+
+    for idx, f in enumerate(filtered_pdf_files, start=1):
         doc_stem = f.stem
-        print(f"[{idx}/{len(pdf_files)}] Processing {doc_stem} ...")
+        print(f"[{idx}/{len(filtered_pdf_files)}] Processing {doc_stem} ...")
         try:
             chunks = build_chunks_for_financial_report(
                 str(f),
@@ -419,7 +294,9 @@ if __name__ == "__main__":
             )
             total_chunks.extend(chunks)
         except Exception as e:
-            print(f"[WARN] Failed on {f}: {e}")
+            print("\033[91m[WARN] Failed on {f}: {e}\033[0m".format(f=f, e=e))
+            with open("./log.txt", "a", encoding="utf-8") as log_file:
+                log_file.write(f"Error processing {f}: {e}\n")
             continue
 
     print("\n[SUMMARY]")

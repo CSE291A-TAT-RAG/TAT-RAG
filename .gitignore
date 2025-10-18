@@ -5,8 +5,10 @@ tat_docs.zip
 *.7z
 *.json
 *.jsonl
+*.pdf
 
 tat_docs/
+tat_docs_filtered/
 
 .vscode/
 __pycache__/
@@ -14,3 +16,5 @@ __pycache__/
 .DS_Store
 
 phase1\chunks.jsonl
+**/csvs/
+**/log.txt
