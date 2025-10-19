@@ -57,7 +57,10 @@ services:
       - ./tests:/app/tests                # Mount tests directory
       - ./examples:/app/examples          # Mount examples directory
       - ./main.py:/app/main.py            # Mount main script
+      - ./app.py:/app/app.py              # Mount Streamlit app
       - ./scripts:/app/scripts            # Mount scripts directory
+    ports:
+      - "8501:8501"                       # Streamlit port
     networks:
       - rag-network
     stdin_open: true
@@ -69,8 +72,8 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    # Keep container running for interactive use
-    command: tail -f /dev/null
+    # Auto-start Streamlit web UI
+    command: streamlit run app.py --server.port 8501 --server.address 0.0.0.0
 
 volumes:
   qdrant_storage:

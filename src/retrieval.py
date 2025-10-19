@@ -66,26 +66,30 @@ class RAGPipeline:
         """
         return self.embedding_provider.embed_query(query)
 
-    def retrieve(self, query: str, top_k: Optional[int] = None) -> List[Dict[str, Any]]:
+    def retrieve(self, query: str, top_k: Optional[int] = None, score_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
         """
-        Retrieve relevant documents from Qdrant.
+        Retrieve relevant documents from Qdrant with score filtering.
 
         Args:
             query: Query string
-            top_k: Number of documents to retrieve (default from config)
+            top_k: Maximum number of documents to retrieve (default from config)
+            score_threshold: Minimum similarity score (default from config)
 
         Returns:
-            List of retrieved documents with content, metadata, and score
+            List of retrieved documents with content, metadata, and score (filtered by threshold)
         """
         if top_k is None:
             top_k = self.config.top_k
+        if score_threshold is None:
+            score_threshold = self.config.score_threshold
 
         query_vector = self.embed_query(query)
 
         search_result = self.qdrant_client.search(
             collection_name=self.config.qdrant.collection_name,
             query_vector=query_vector,
-            limit=top_k
+            limit=top_k,
+            score_threshold=score_threshold  # Only return results above this score
         )
 
         retrieved_docs = []
@@ -97,7 +101,10 @@ class RAGPipeline:
                 "id": hit.id
             })
 
-        logger.info(f"Retrieved {len(retrieved_docs)} documents for query: {query[:50]}...")
+        logger.info(
+            f"Retrieved {len(retrieved_docs)} documents for query: {query[:50]}... "
+            f"(threshold: {score_threshold:.2f})"
+        )
         return retrieved_docs
 
     def generate_prompt(self, query: str, contexts: List[str]) -> str:
@@ -157,21 +164,22 @@ Answer: Provide a detailed and accurate answer based on the contexts above. If t
             "usage": response["usage"]
         }
 
-    def query(self, query: str, top_k: Optional[int] = None) -> Dict[str, Any]:
+    def query(self, query: str, top_k: Optional[int] = None, score_threshold: Optional[float] = None) -> Dict[str, Any]:
         """
         Complete RAG pipeline: retrieve and generate.
 
         Args:
             query: User query
-            top_k: Number of documents to retrieve (default from config)
+            top_k: Maximum number of documents to retrieve (default from config)
+            score_threshold: Minimum similarity score (default from config)
 
         Returns:
             Dictionary with answer, contexts, and metadata
         """
         logger.info(f"Processing query: {query}")
 
-        # Retrieve relevant documents
-        retrieved_docs = self.retrieve(query, top_k)
+        # Retrieve relevant documents with score filtering
+        retrieved_docs = self.retrieve(query, top_k, score_threshold)
         contexts = [doc["content"] for doc in retrieved_docs]
 
         # Generate answer

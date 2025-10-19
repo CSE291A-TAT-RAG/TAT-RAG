@@ -4,12 +4,13 @@ A complete, production-ready RAG (Retrieval-Augmented Generation) pipeline with 
 
 ## ✨ Key Features
 
+- **🌐 Streamlit Web UI**: Interactive chat interface with PDF source navigation
 - **🔄 Flexible LLM Providers**: Ollama (local) or AWS Bedrock (cloud)
 - **🎯 Retrieve-Only Mode**: Perfect for Mac/CPU-only users - no LLM required!
 - **📚 Document Ingestion**: Support for TXT and PDF files
-- **📄 Advanced PDF Parsing**: Dual parser support
+- **📄 Advanced PDF Parsing**: Dual parser support with position tracking
   - **LangChain**: Fast, simple loading for general documents
-  - **Fitz (PyMuPDF)**: Advanced parsing with better text extraction for financial reports
+  - **Fitz (PyMuPDF)**: Advanced parsing with bbox coordinates for source navigation
 - **🔍 Semantic Search**: BGE-M3 multilingual embeddings (local)
 - **🤖 RAG Pipeline**: Context-aware answer generation
 - **📊 RAGAS Evaluation**: Comprehensive quality metrics
@@ -49,7 +50,7 @@ The project operates in three main pipelines:
 
 ```bash
 # Start all services
-docker-compose up -d
+docker-compose up -d --build
 
 # Ingest documents for windows
 docker-compose exec rag-app python main.py ingest //app/data/sample.txt
@@ -57,9 +58,40 @@ docker-compose exec rag-app python main.py ingest //app/data/sample.txt
 # Ingest documents for macOS / Linux
 docker-compose exec rag-app python main.py ingest /app/data/sample.txt
 
+# Launch Streamlit Web UI
+docker-compose exec rag-app streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+# Then open: http://localhost:8501
 ```
 
 ## 📖 Usage Examples
+
+### 🌐 Web UI (Streamlit)
+
+The easiest way to use TAT-RAG is through the Streamlit web interface:
+
+```bash
+# Make sure your documents are ingested first
+docker-compose exec rag-app python main.py ingest /app/data/your_file.pdf --file-type pdf --parser fitz
+
+# Launch Streamlit
+docker-compose exec rag-app streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+
+# Open in browser: http://localhost:8501
+```
+
+**Features:**
+- 💬 **Chat Interface**: Ask questions and get answers with context
+- 📄 **Source Display**: View retrieved documents with metadata in sidebar
+- 📍 **Position Information**: See exact page number and bounding box coordinates
+- 🔗 **PDF Navigation**: Click "View in PDF" to jump to the source page
+- ⚙️ **Smart Retrieval**: Control max sources and similarity threshold
+  - Adjust top-K (max results to return)
+  - Set similarity threshold (filter low-quality results)
+
+**Screenshot Features:**
+- Left panel: Chat history and Q&A
+- Right panel: Retrieved sources with scores and metadata
+- Bottom: PDF viewer that opens when you click on a source
 
 ### CLI Commands
 

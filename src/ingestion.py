@@ -8,7 +8,7 @@ import hashlib
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .config import RAGConfig
 from .embedding_providers import create_embedding_provider

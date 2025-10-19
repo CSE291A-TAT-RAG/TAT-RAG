@@ -52,6 +52,7 @@ class EmbeddingConfig:
 class RAGConfig:
     """RAG pipeline configuration."""
     top_k: int = int(os.getenv("RAG_TOP_K", "5"))
+    score_threshold: float = float(os.getenv("RAG_SCORE_THRESHOLD", "0.5"))  # Minimum similarity score
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "200"))
 
