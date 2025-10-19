@@ -1,6 +1,7 @@
 [
     {
         "query" : "What is the company's main cost of revenue?",
+        "answer" : "products, service",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" : 52 , "para_index" : 12, "content" : "Cost of products revenue is primarily comprised of cost of third-party manufacturing services and cost of\ninventory for the hardware component of our products. Cost of products revenue also includes warehouse personnel\ncosts, shipping costs, inventory write-downs, certain allocated facilities and information technology infrastructure\ncosts, and expenses associated with logistics and quality control."},
@@ -9,6 +10,7 @@
     },
     {
         "query" : "What is the company's total cost of revenue in 2019?",
+        "answer" : "$48,881",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" :  52, "para_index" :15 , "content" : "Years Ended December 31,\nIncrease (Decrease)\n2019\n2018\nAmount\nPercent"},
@@ -18,6 +20,7 @@
     },
     {
         "query" : "What does the cost of products revenue comprise of?",
+        "answer": "cost of third-party manufacturing services and cost of inventory for the hardware component",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" : 52 , "para_index" : 12, "content" : "Cost of products revenue is primarily comprised of cost of third-party manufacturing services and cost of\ninventory for the hardware component of our products. Cost of products revenue also includes warehouse personnel\ncosts, shipping costs, inventory write-downs, certain allocated facilities and information technology infrastructure\ncosts, and expenses associated with logistics and quality control."}
@@ -25,6 +28,7 @@
     },
     {
         "query" : "What is the change in total cost of revenue between 2019 and 2018?",
+        "answer": "-5.81",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" :  52, "para_index" :15 , "content" : "Years Ended December 31,\nIncrease (Decrease)\n2019\n2018\nAmount\nPercent"},
@@ -34,6 +38,7 @@
     },
     {
         "query" : "What is the total cost of revenue in both 2019 and 2018?",
+        "answer": "10077",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" :  52, "para_index" :15 , "content" : "Years Ended December 31,\nIncrease (Decrease)\n2019\n2018\nAmount\nPercent"},
@@ -43,6 +48,7 @@
     },
     {
         "query" : "What is the proportion of products as a percentage of the total cost of revenue in 2019?",
+        "answer": "61",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" :  52, "para_index" :15 , "content" : "Years Ended December 31,\nIncrease (Decrease)\n2019\n2018\nAmount\nPercent"},
@@ -52,6 +58,7 @@
     },
     {
         "query" : "How many shares PSUs granted in February 2016?",
+        "answer": "547,000",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" : 90 , "para_index" : 3, "content" : "In February 2016, we granted 547,000 PSUs with certain financial and operational targets. Actual performance,\nas measured at the time and prior to the restatement of the 2016 financial statements, resulted in participants\nachieving 80% of target. Given the PSUs did not contain explicit or implicit claw back rights, there was no change\nto stock-based compensation expense for the impact of the previously disclosed restatement of the 2016 consolidated\nfinancial statements. As of December 31, 2019, 253,203 shares had vested, 200,297 shares had been forfeited, and\nthe remaining 93,500 shares will vest (as to 80%) in annual tranches through February 2020 subject to continued\nservice vesting requirements."}
@@ -59,6 +66,7 @@
     },
     {
         "query" : "How many shares have been vested as of December 31, 2019?",
+        "answer": "253,203",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" : 90 , "para_index" : 3, "content" : "In February 2016, we granted 547,000 PSUs with certain financial and operational targets. Actual performance,\nas measured at the time and prior to the restatement of the 2016 financial statements, resulted in participants\nachieving 80% of target. Given the PSUs did not contain explicit or implicit claw back rights, there was no change\nto stock-based compensation expense for the impact of the previously disclosed restatement of the 2016 consolidated\nfinancial statements. As of December 31, 2019, 253,203 shares had vested, 200,297 shares had been forfeited, and\nthe remaining 93,500 shares will vest (as to 80%) in annual tranches through February 2020 subject to continued\nservice vesting requirements."}
@@ -66,6 +74,7 @@
     },
     {
         "query" : "How many PSUs were granted in December 2019?",
+        "answer": "375,000",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" : 90 , "para_index" : 6, "content" : "In December 2019, we granted 375,000 PSUs with certain market performance-based targets to be achieved\nbetween December 2019 and December 2023. One-third of each tranche of these PSUs will become eligible to vest\non each of the three anniversaries of the date the performance-based target is achieved, subject to continued service\nvesting requirements. The grant date fair values of each tranche of these PSUs were estimated to be $4.59, $4.06 and\n$3.59 and determined using the Monte Carlo simulation model with the following assumptions: expected term of\n4.0 years, expected volatility of 38.45%, risk-free interest rate of 1.7% and expected dividend yield of 0.0%. None\nof these PSUs were vested as of December 31, 2019."}
@@ -73,6 +82,7 @@
     },
     {
         "query" : "What is the percentage difference in the number of PSUs granted between February 2016 and October 2018?",
+        "answer": "-15.01",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" :  90, "para_index" : 3, "content" : "In February 2016, we granted 547,000 PSUs with certain financial and operational targets. Actual performance,\nas measured at the time and prior to the restatement of the 2016 financial statements, resulted in participants\nachieving 80% of target. Given the PSUs did not contain explicit or implicit claw back rights, there was no change\nto stock-based compensation expense for the impact of the previously disclosed restatement of the 2016 consolidated\nfinancial statements. As of December 31, 2019, 253,203 shares had vested, 200,297 shares had been forfeited, and\nthe remaining 93,500 shares will vest (as to 80%) in annual tranches through February 2020 subject to continued\nservice vesting requirements."},
@@ -81,6 +91,7 @@
     },
     {
         "query" : "What is the total number of nonvested shares as of December 31, 2019 and 2018?",
+        "answer" : "12122",
         "source" : "/app/data/a10-networks-inc_2019.pdf",
         "gold" : [
             {"page" :  90, "para_index" :7 , "content" : "The following table summarizes our stock award activities and related information:"},
@@ -90,6 +101,536 @@
             {"page" :  90, "para_index" : 11, "content" : "Nonvested as of December 31, 2018. . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,974\n$6.51\nGranted . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,288\n$6.74\nReleased . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(1,774)\n$6.60\nCanceled . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(1,340)\n$6.57"},
             {"page" :  90, "para_index" : 12, "content" : "Nonvested as of December 31, 2019. . . . . . . . . . . . . . . . . . . . . . . . . . . .\n6,148\n$6.59\n1.81"}
         ]   
+    },
+    {
+        "query" : "What is the total number of PSUs granted in April and December 2019 altogether?",
+        "answer": "721453",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  90, "para_index" : 5, "content" : "In April 2019, we granted 346,453 PSUs with certain financial targets. These PSUs will become eligible to vest\nat 75% on the second month following achievement of certain performance targets by December 31, 2021, with the\nremaining 25% of the PSUs to vest on the first anniversary of the initial vesting date, subject to continued service\nvesting requirements. None of these PSUs were vested as of December 31, 2019."},
+            {"page" :  90, "para_index" : 6, "content" : "In December 2019, we granted 375,000 PSUs with certain market performance-based targets to be achieved\nbetween December 2019 and December 2023. One-third of each tranche of these PSUs will become eligible to vest\non each of the three anniversaries of the date the performance-based target is achieved, subject to continued service\nvesting requirements. The grant date fair values of each tranche of these PSUs were estimated to be $4.59, $4.06 and\n$3.59 and determined using the Monte Carlo simulation model with the following assumptions: expected term of\n4.0 years, expected volatility of 38.45%, risk-free interest rate of 1.7% and expected dividend yield of 0.0%. None\nof these PSUs were vested as of December 31, 2019."}
+        ]
+    },
+    {
+        "query" : "What is the total provision for income taxes in 2019?",
+        "answer": "$1,407",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  91, "para_index" : 10, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  91, "para_index" : 11, "content" : "Current provision for income taxes:\nState . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n49\n$\n44\n$\n48\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,716\n953\n1,023"},
+            {"page" :  91, "para_index" : 12, "content" : "Total current . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,765\n997\n1,07"},
+            {"page" :  91, "para_index" : 13, "content" : "Deferred tax expense (benefit):\nFederal . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3\n(13)\n26\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(361)\n98\n109"},
+            {"page" :  91, "para_index" : 14, "content" : "Total deferred . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(358)\n85\n135"},
+            {"page" :  91, "para_index" : 15, "content" : "Provision for income taxes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$1,407\n$1,082\n$1,20"}
+        ]
+    },
+    {
+        "query" : "What is the total provision for income taxes in 2018?",
+        "answer": "$1,082",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  91, "para_index" : 10, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  91, "para_index" : 11, "content" : "Current provision for income taxes:\nState . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n49\n$\n44\n$\n48\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,716\n953\n1,023"},
+            {"page" :  91, "para_index" : 12, "content" : "Total current . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,765\n997\n1,07"},
+            {"page" :  91, "para_index" : 13, "content" : "Deferred tax expense (benefit):\nFederal . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3\n(13)\n26\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(361)\n98\n109"},
+            {"page" :  91, "para_index" : 14, "content" : "Total deferred . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(358)\n85\n135"},
+            {"page" :  91, "para_index" : 15, "content" : "Provision for income taxes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$1,407\n$1,082\n$1,20"}
+        ]
+    },
+    {
+        "query" : "What is the total provision for income taxes between 2017 to 2019?",
+        "answer": "3695",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  91, "para_index" : 10, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  91, "para_index" : 11, "content" : "Current provision for income taxes:\nState . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n49\n$\n44\n$\n48\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,716\n953\n1,023"},
+            {"page" :  91, "para_index" : 12, "content" : "Total current . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,765\n997\n1,07"},
+            {"page" :  91, "para_index" : 13, "content" : "Deferred tax expense (benefit):\nFederal . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3\n(13)\n26\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(361)\n98\n109"},
+            {"page" :  91, "para_index" : 14, "content" : "Total deferred . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(358)\n85\n135"},
+            {"page" :  91, "para_index" : 15, "content" : "Provision for income taxes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$1,407\n$1,082\n$1,20"}
+        ]
+    },
+    {
+        "query" : "What is the change in the current provision for income taxes at the state level between 2018 and 2019?",
+        "answer": "11.36",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  91, "para_index" : 10, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  91, "para_index" : 11, "content" : "Current provision for income taxes:\nState . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n49\n$\n44\n$\n48\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,716\n953\n1,023"},
+            {"page" :  91, "para_index" : 12, "content" : "Total current . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,765\n997\n1,07"},
+            {"page" :  91, "para_index" : 13, "content" : "Deferred tax expense (benefit):\nFederal . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3\n(13)\n26\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(361)\n98\n109"},
+            {"page" :  91, "para_index" : 14, "content" : "Total deferred . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(358)\n85\n135"},
+            {"page" :  91, "para_index" : 15, "content" : "Provision for income taxes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$1,407\n$1,082\n$1,20"}
+        ]
+    },
+    {
+        "query" : "What is the total federal tax expense between 2017 to 2019?",
+        "answer": "16",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  91, "para_index" : 10, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  91, "para_index" : 11, "content" : "Current provision for income taxes:\nState . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n49\n$\n44\n$\n48\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,716\n953\n1,023"},
+            {"page" :  91, "para_index" : 12, "content" : "Total current . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n1,765\n997\n1,07"},
+            {"page" :  91, "para_index" : 13, "content" : "Deferred tax expense (benefit):\nFederal . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3\n(13)\n26\nForeign. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(361)\n98\n109"},
+            {"page" :  91, "para_index" : 14, "content" : "Total deferred . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(358)\n85\n135"},
+            {"page" :  91, "para_index" : 15, "content" : "Provision for income taxes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$1,407\n$1,082\n$1,20"}
+        ]
+    },
+    {
+        "query" : "What are the years included under the statement of cash flows table?",
+        "answer": "2017,2018,2019",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  57, "para_index" : 2, "content" : "The following table summarizes our cash flow related activities (in thousands):"},
+            {"page" :  57, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"}
+        ]
+    },
+    {
+        "query" : "How much is the cash provided by operating activities in 2019?",
+        "answer": "426",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  57, "para_index" : 2, "content" : "The following table summarizes our cash flow related activities (in thousands):"},
+            {"page" :  57, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  57, "para_index" : 4, "content" : "Cash (used in) provided by:\nOperating activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ (426)\n$(2,694)\n$14,314\nInvesting activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(251)\n(6,876)\n(5,142)\nFinancing activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,798\n3,624\n8,420"},
+            {"page" :  57, "para_index" : 5, "content" : "Net increase (decrease) in cash and cash equivalents . . . . . . . . . . . . . . . . . . . . . .\n$5,121\n$(5,946)\n$17,592"}
+        ]
+    },
+    {
+        "query" : "How much is the cash provided by financing activities in 2019?",
+        "answer": "5798",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  57, "para_index" : 2, "content" : "The following table summarizes our cash flow related activities (in thousands):"},
+            {"page" :  57, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  57, "para_index" : 4, "content" : "Cash (used in) provided by:\nOperating activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ (426)\n$(2,694)\n$14,314\nInvesting activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(251)\n(6,876)\n(5,142)\nFinancing activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,798\n3,624\n8,420"},
+            {"page" :  57, "para_index" : 5, "content" : "Net increase (decrease) in cash and cash equivalents . . . . . . . . . . . . . . . . . . . . . .\n$5,121\n$(5,946)\n$17,592"}
+        ]
+    },
+    {
+        "query" : "What is the percentage change in cash provided by financing activities between 2018 and 2019?",
+        "answer": "59.99",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  57, "para_index" : 2, "content" : "The following table summarizes our cash flow related activities (in thousands):"},
+            {"page" :  57, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  57, "para_index" : 4, "content" : "Cash (used in) provided by:\nOperating activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ (426)\n$(2,694)\n$14,314\nInvesting activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(251)\n(6,876)\n(5,142)\nFinancing activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,798\n3,624\n8,420"},
+            {"page" :  57, "para_index" : 5, "content" : "Net increase (decrease) in cash and cash equivalents . . . . . . . . . . . . . . . . . . . . . .\n$5,121\n$(5,946)\n$17,592"}
+        ]
+    },
+    {
+        "query" : "What is the total cash provided by financing activities between 2017 to 2019?",
+        "answer": "17842",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  57, "para_index" : 2, "content" : "The following table summarizes our cash flow related activities (in thousands):"},
+            {"page" :  57, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  57, "para_index" : 4, "content" : "Cash (used in) provided by:\nOperating activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ (426)\n$(2,694)\n$14,314\nInvesting activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(251)\n(6,876)\n(5,142)\nFinancing activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,798\n3,624\n8,420"},
+            {"page" :  57, "para_index" : 5, "content" : "Net increase (decrease) in cash and cash equivalents . . . . . . . . . . . . . . . . . . . . . .\n$5,121\n$(5,946)\n$17,592"}
+        ]
+    },
+    {
+        "query" : "What is the total cash provided by all cash flow related activities between 2017 to 2019?",
+        "answer": "16767",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  57, "para_index" : 2, "content" : "The following table summarizes our cash flow related activities (in thousands):"},
+            {"page" :  57, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  57, "para_index" : 4, "content" : "Cash (used in) provided by:\nOperating activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ (426)\n$(2,694)\n$14,314\nInvesting activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(251)\n(6,876)\n(5,142)\nFinancing activities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,798\n3,624\n8,420"},
+            {"page" :  57, "para_index" : 5, "content" : "Net increase (decrease) in cash and cash equivalents . . . . . . . . . . . . . . . . . . . . . .\n$5,121\n$(5,946)\n$17,592"}
+        ]
+    },
+    {
+        "query" : "What is the company's 2019 right of use assets?",
+        "answer": "$33,014",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  82, "para_index" : 10, "content" : "December 31, 2019"},
+            {"page" :  82, "para_index" : 11, "content" : "Operating leases\nRight-of-use assets:\nOther non-current assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$33,014"},
+            {"page" :  82, "para_index" : 12, "content" : "Total right-of-use assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$33,014"},
+            {"page" :  82, "para_index" : 13, "content" : "Lease liabilities:\nAccrued liabilities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 5,109\nOther non-current liabilities . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n28,046"},
+            {"page" :  82, "para_index" : 14, "content" : "Total operating lease liabilities. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$33,155"}
+        ]
+    },
+    {
+        "query" : "What is the company's total other non-current assets as at December 31, 2018?",
+        "answer": "$8,620",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  85, "para_index" : 2, "content" : "Other non-current assets consisted of the following (in thousands):"},
+            {"page" :  85, "para_index" : 3, "content" : "December 31,\n2019\nDecember 31,\n2018"},
+            {"page" :  85, "para_index" : 4, "content" : "Right of use assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$33,014\n$\n—\nDeferred contract acquisition costs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,297\n3,184\nDeposits. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n2,338\n1,975\nOther . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,197\n3,461"},
+            {"page" :  85, "para_index" : 5, "content" : "Total other non-current assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n41,846\n$8,620"}
+        ]
+    },
+    {
+        "query" : "What is the company's total other non-current assets as at December 31, 2019?",
+        "answer": "41,846",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  85, "para_index" : 2, "content" : "Other non-current assets consisted of the following (in thousands):"},
+            {"page" :  85, "para_index" : 3, "content" : "December 31,\n2019\nDecember 31,\n2018"},
+            {"page" :  85, "para_index" : 4, "content" : "Right of use assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$33,014\n$\n—\nDeferred contract acquisition costs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,297\n3,184\nDeposits. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n2,338\n1,975\nOther . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,197\n3,461"},
+            {"page" :  85, "para_index" : 5, "content" : "Total other non-current assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n41,846\n$8,620"}
+        ]
+    },
+    {
+        "query" : "What is the percentage change in the total other non-current assets between 2018 and 2019?",
+        "answer": "385.45",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  85, "para_index" : 2, "content" : "Other non-current assets consisted of the following (in thousands):"},
+            {"page" :  85, "para_index" : 3, "content" : "December 31,\n2019\nDecember 31,\n2018"},
+            {"page" :  85, "para_index" : 4, "content" : "Right of use assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$33,014\n$\n—\nDeferred contract acquisition costs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,297\n3,184\nDeposits. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n2,338\n1,975\nOther . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,197\n3,461"},
+            {"page" :  85, "para_index" : 5, "content" : "Total other non-current assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n41,846\n$8,620"}
+        ]
+    },
+    {
+        "query" : "What is the total value of other non-current assets between 2018 to 2019?",
+        "answer": "50466",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  85, "para_index" : 2, "content" : "Other non-current assets consisted of the following (in thousands):"},
+            {"page" :  85, "para_index" : 3, "content" : "December 31,\n2019\nDecember 31,\n2018"},
+            {"page" :  85, "para_index" : 4, "content" : "Right of use assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$33,014\n$\n—\nDeferred contract acquisition costs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,297\n3,184\nDeposits. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n2,338\n1,975\nOther . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,197\n3,461"},
+            {"page" :  85, "para_index" : 5, "content" : "Total other non-current assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n41,846\n$8,620"}
+        ]
+    },
+    {
+        "query" : "What is the total deposits in 2018 and 2019?",
+        "answer": "4313",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  85, "para_index" : 2, "content" : "Other non-current assets consisted of the following (in thousands):"},
+            {"page" :  85, "para_index" : 3, "content" : "December 31,\n2019\nDecember 31,\n2018"},
+            {"page" :  85, "para_index" : 4, "content" : "Right of use assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$33,014\n$\n—\nDeferred contract acquisition costs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,297\n3,184\nDeposits. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n2,338\n1,975\nOther . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,197\n3,461"},
+            {"page" :  85, "para_index" : 5, "content" : "Total other non-current assets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n41,846\n$8,620"}
+        ]
+    },
+    {
+        "query" : "What is the revenue earned in the first quarter of 2019?",
+        "answer": "$50,290",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 13, "content" : "Selected quarterly financial data for 2019 and 2018 is as follows (in thousands, except per share amounts):"},
+            {"page" :  94, "para_index" : 14, "content" : "Quarter Ended\nMarch 31,\n2019\nJune 30,\n2019\nSeptember 30,\n2019\nDecember 31,\n2019"},
+            {"page" :  94, "para_index" : 15, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 50,290\n$49,189\n$52,833\n$60,316\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 38,040\n$37,918\n$40,913\n$46,876\nNet income (loss) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(12,272)\n$ (5,771)\n$\n173\n$\n51\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—"},
+            {"page" :  94, "para_index" : 16, "content" : "Quarter Ended\nMarch 31,\n2018\nJune 30,\n2018\nSeptember 30,\n2018\nDecember 31,\n2018"},
+            {"page" :  94, "para_index" : 17, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 49,183\n$60,713\n$60,502\n$61,825\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 37,299\n$47,526\n$47,488\n$48,014\nNet loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(19,670)\n$ (4,532)\n$ (1,807)\n$ (1,608)\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)"}
+        ]
+    },
+    {
+        "query" : "What is the revenue earned in the second quarter of 2019?",
+        "answer": "$49,189",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 13, "content" : "Selected quarterly financial data for 2019 and 2018 is as follows (in thousands, except per share amounts):"},
+            {"page" :  94, "para_index" : 14, "content" : "Quarter Ended\nMarch 31,\n2019\nJune 30,\n2019\nSeptember 30,\n2019\nDecember 31,\n2019"},
+            {"page" :  94, "para_index" : 15, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 50,290\n$49,189\n$52,833\n$60,316\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 38,040\n$37,918\n$40,913\n$46,876\nNet income (loss) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(12,272)\n$ (5,771)\n$\n173\n$\n51\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—"},
+            {"page" :  94, "para_index" : 16, "content" : "Quarter Ended\nMarch 31,\n2018\nJune 30,\n2018\nSeptember 30,\n2018\nDecember 31,\n2018"},
+            {"page" :  94, "para_index" : 17, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 49,183\n$60,713\n$60,502\n$61,825\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 37,299\n$47,526\n$47,488\n$48,014\nNet loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(19,670)\n$ (4,532)\n$ (1,807)\n$ (1,608)\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)"}
+        ]
+    },
+    {
+        "query" : "What is the change in revenue between the first and second quarters of 2019?",
+        "answer": "2.24",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 13, "content" : "Selected quarterly financial data for 2019 and 2018 is as follows (in thousands, except per share amounts):"},
+            {"page" :  94, "para_index" : 14, "content" : "Quarter Ended\nMarch 31,\n2019\nJune 30,\n2019\nSeptember 30,\n2019\nDecember 31,\n2019"},
+            {"page" :  94, "para_index" : 15, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 50,290\n$49,189\n$52,833\n$60,316\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 38,040\n$37,918\n$40,913\n$46,876\nNet income (loss) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(12,272)\n$ (5,771)\n$\n173\n$\n51\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—"},
+            {"page" :  94, "para_index" : 16, "content" : "Quarter Ended\nMarch 31,\n2018\nJune 30,\n2018\nSeptember 30,\n2018\nDecember 31,\n2018"},
+            {"page" :  94, "para_index" : 17, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 49,183\n$60,713\n$60,502\n$61,825\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 37,299\n$47,526\n$47,488\n$48,014\nNet loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(19,670)\n$ (4,532)\n$ (1,807)\n$ (1,608)\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)"}
+        ]
+    },
+    {
+        "query" : "What is the change in gross profit between the second and third quarter of 2018?",
+        "answer": "0.08",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 13, "content" : "Selected quarterly financial data for 2019 and 2018 is as follows (in thousands, except per share amounts):"},
+            {"page" :  94, "para_index" : 14, "content" : "Quarter Ended\nMarch 31,\n2019\nJune 30,\n2019\nSeptember 30,\n2019\nDecember 31,\n2019"},
+            {"page" :  94, "para_index" : 15, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 50,290\n$49,189\n$52,833\n$60,316\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 38,040\n$37,918\n$40,913\n$46,876\nNet income (loss) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(12,272)\n$ (5,771)\n$\n173\n$\n51\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—"},
+            {"page" :  94, "para_index" : 16, "content" : "Quarter Ended\nMarch 31,\n2018\nJune 30,\n2018\nSeptember 30,\n2018\nDecember 31,\n2018"},
+            {"page" :  94, "para_index" : 17, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 49,183\n$60,713\n$60,502\n$61,825\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 37,299\n$47,526\n$47,488\n$48,014\nNet loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(19,670)\n$ (4,532)\n$ (1,807)\n$ (1,608)\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)"}
+        ]
+    },
+    {
+        "query" : "What is the difference in revenue between December 31,2018 to December 31,2019?",
+        "answer": "-1509",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 13, "content" : "Selected quarterly financial data for 2019 and 2018 is as follows (in thousands, except per share amounts):"},
+            {"page" :  94, "para_index" : 14, "content" : "Quarter Ended\nMarch 31,\n2019\nJune 30,\n2019\nSeptember 30,\n2019\nDecember 31,\n2019"},
+            {"page" :  94, "para_index" : 15, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 50,290\n$49,189\n$52,833\n$60,316\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 38,040\n$37,918\n$40,913\n$46,876\nNet income (loss) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(12,272)\n$ (5,771)\n$\n173\n$\n51\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—"},
+            {"page" :  94, "para_index" : 16, "content" : "Quarter Ended\nMarch 31,\n2018\nJune 30,\n2018\nSeptember 30,\n2018\nDecember 31,\n2018"},
+            {"page" :  94, "para_index" : 17, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 49,183\n$60,713\n$60,502\n$61,825\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 37,299\n$47,526\n$47,488\n$48,014\nNet loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(19,670)\n$ (4,532)\n$ (1,807)\n$ (1,608)\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)"}
+        ]
+    },
+    {
+        "query" : "What is the company's net loss in 2019?",
+        "answer": "$(17,819)",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 13, "content" : "Selected quarterly financial data for 2019 and 2018 is as follows (in thousands, except per share amounts):"},
+            {"page" :  94, "para_index" : 14, "content" : "Quarter Ended\nMarch 31,\n2019\nJune 30,\n2019\nSeptember 30,\n2019\nDecember 31,\n2019"},
+            {"page" :  94, "para_index" : 15, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 50,290\n$49,189\n$52,833\n$60,316\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 38,040\n$37,918\n$40,913\n$46,876\nNet income (loss) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(12,272)\n$ (5,771)\n$\n173\n$\n51\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—"},
+            {"page" :  94, "para_index" : 16, "content" : "Quarter Ended\nMarch 31,\n2018\nJune 30,\n2018\nSeptember 30,\n2018\nDecember 31,\n2018"},
+            {"page" :  94, "para_index" : 17, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 49,183\n$60,713\n$60,502\n$61,825\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 37,299\n$47,526\n$47,488\n$48,014\nNet loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(19,670)\n$ (4,532)\n$ (1,807)\n$ (1,608)\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)"}
+        ]
+    },
+    {
+        "query" : "What is the company's percentage change in net loss between 2018 and 2019?",
+        "answer": "-36.96",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 13, "content" : "Selected quarterly financial data for 2019 and 2018 is as follows (in thousands, except per share amounts):"},
+            {"page" :  94, "para_index" : 14, "content" : "Quarter Ended\nMarch 31,\n2019\nJune 30,\n2019\nSeptember 30,\n2019\nDecember 31,\n2019"},
+            {"page" :  94, "para_index" : 15, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 50,290\n$49,189\n$52,833\n$60,316\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 38,040\n$37,918\n$40,913\n$46,876\nNet income (loss) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(12,272)\n$ (5,771)\n$\n173\n$\n51\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.16)\n$ (0.08)\n$\n—\n$\n—"},
+            {"page" :  94, "para_index" : 16, "content" : "Quarter Ended\nMarch 31,\n2018\nJune 30,\n2018\nSeptember 30,\n2018\nDecember 31,\n2018"},
+            {"page" :  94, "para_index" : 17, "content" : "Revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 49,183\n$60,713\n$60,502\n$61,825\nGross profit . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 37,299\n$47,526\n$47,488\n$48,014\nNet loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(19,670)\n$ (4,532)\n$ (1,807)\n$ (1,608)\nNet loss per share - basic . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)\nNet loss per share - diluted. . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n(0.27)\n$ (0.06)\n$ (0.02)\n$ (0.02)"}
+        ]
+    },
+    {
+        "query" : "What is the company's total unrealized gain on marketable securities between 2017 to 2019?",
+        "answer": "296",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  67, "para_index" : 1, "content" : "A10 NETWORKS, INC.\nCONSOLIDATED STATEMENTS OF COMPREHENSIVE LOSS\n(in thousands)"},
+            {"page" :  67, "para_index" : 2, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  67, "para_index" : 3, "content" : "Net loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(17,819)\n$(27,617)\n$(10,751)\nOther comprehensive loss, net of tax:\nUnrealized gain (loss) on marketable securities . . . . . . . . . . . . . . . . .\n395\n(21)\n(78)"},
+            {"page" :  67, "para_index" : 4, "content" : "Comprehensive loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(17,424)\n$(27,638)\n$(10,829)"}
+        ]
+    },
+    {
+        "query" : "What is the company's total Comprehensive loss between 2017 to 2019?",
+        "answer": "-55891",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  67, "para_index" : 1, "content" : "A10 NETWORKS, INC.\nCONSOLIDATED STATEMENTS OF COMPREHENSIVE LOSS\n(in thousands)"},
+            {"page" :  67, "para_index" : 2, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  67, "para_index" : 3, "content" : "Net loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(17,819)\n$(27,617)\n$(10,751)\nOther comprehensive loss, net of tax:\nUnrealized gain (loss) on marketable securities . . . . . . . . . . . . . . . . .\n395\n(21)\n(78)"},
+            {"page" :  67, "para_index" : 4, "content" : "Comprehensive loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$(17,424)\n$(27,638)\n$(10,829)"}
+        ]
+    },
+    {
+        "query" : "What is the amount of employee stock purchase rights including accelerated stock-based compensation expense at the end of 2019?",
+        "answer": "999",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" : 88 , "para_index" : 5, "content" : "A summary of our stock-based compensation expense is as follows (in thousands):"},
+            {"page" :  88, "para_index" : 6, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  88, "para_index" : 7, "content" : "Stock-based compensation by type of award:\nStock options. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n648\n$ 1,353\n$ 2,705\nStock awards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n14,882\n10,445\n11,421\nEmployee stock purchase rights(1) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n999\n5,240\n3,077"},
+            {"page" :  88, "para_index" : 8, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"},
+            {"page" :  88, "para_index" : 9, "content" : "Stock-based compensation by category of expense:\nCost of revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 1,500\n$ 1,602\n$ 1,362\nSales and marketing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,765\n5,667\n6,075\nResearch and development . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n6,039\n6,631\n6,343\nGeneral and administrative . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,225\n3,138\n3,423"},
+            {"page" :  88, "para_index" : 10, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"}
+        ]
+    },
+    {
+        "query" : "What is the amount of employee stock purchase rights including accelerated stock-based compensation expense at the end of 2018?",
+        "answer": "5,240",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" : 88 , "para_index" : 5, "content" : "A summary of our stock-based compensation expense is as follows (in thousands):"},
+            {"page" :  88, "para_index" : 6, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  88, "para_index" : 7, "content" : "Stock-based compensation by type of award:\nStock options. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n648\n$ 1,353\n$ 2,705\nStock awards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n14,882\n10,445\n11,421\nEmployee stock purchase rights(1) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n999\n5,240\n3,077"},
+            {"page" :  88, "para_index" : 8, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"},
+            {"page" :  88, "para_index" : 9, "content" : "Stock-based compensation by category of expense:\nCost of revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 1,500\n$ 1,602\n$ 1,362\nSales and marketing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,765\n5,667\n6,075\nResearch and development . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n6,039\n6,631\n6,343\nGeneral and administrative . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,225\n3,138\n3,423"},
+            {"page" :  88, "para_index" : 10, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"}
+        ]
+    },
+    {
+        "query" : "What is the amount of employee stock purchase rights including accelerated stock-based compensation expense at the end of 2017?",
+        "answer": "3,077",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" : 88 , "para_index" : 5, "content" : "A summary of our stock-based compensation expense is as follows (in thousands):"},
+            {"page" :  88, "para_index" : 6, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  88, "para_index" : 7, "content" : "Stock-based compensation by type of award:\nStock options. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n648\n$ 1,353\n$ 2,705\nStock awards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n14,882\n10,445\n11,421\nEmployee stock purchase rights(1) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n999\n5,240\n3,077"},
+            {"page" :  88, "para_index" : 8, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"},
+            {"page" :  88, "para_index" : 9, "content" : "Stock-based compensation by category of expense:\nCost of revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 1,500\n$ 1,602\n$ 1,362\nSales and marketing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,765\n5,667\n6,075\nResearch and development . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n6,039\n6,631\n6,343\nGeneral and administrative . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,225\n3,138\n3,423"},
+            {"page" :  88, "para_index" : 10, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"}
+        ]
+    },
+    {
+        "query" : "What is the percentage change in total stock base compensation by type of award between 2018 and 2019?",
+        "answer": "-2.99",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" : 88 , "para_index" : 5, "content" : "A summary of our stock-based compensation expense is as follows (in thousands):"},
+            {"page" :  88, "para_index" : 6, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  88, "para_index" : 7, "content" : "Stock-based compensation by type of award:\nStock options. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n648\n$ 1,353\n$ 2,705\nStock awards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n14,882\n10,445\n11,421\nEmployee stock purchase rights(1) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n999\n5,240\n3,077"},
+            {"page" :  88, "para_index" : 8, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"},
+            {"page" :  88, "para_index" : 9, "content" : "Stock-based compensation by category of expense:\nCost of revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 1,500\n$ 1,602\n$ 1,362\nSales and marketing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,765\n5,667\n6,075\nResearch and development . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n6,039\n6,631\n6,343\nGeneral and administrative . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,225\n3,138\n3,423"},
+            {"page" :  88, "para_index" : 10, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"}
+        ]
+    },
+    {
+        "query" : "What is the total stock based compensation amount between 2017 to 2019?",
+        "answer": "50770",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" : 88 , "para_index" : 5, "content" : "A summary of our stock-based compensation expense is as follows (in thousands):"},
+            {"page" :  88, "para_index" : 6, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  88, "para_index" : 7, "content" : "Stock-based compensation by type of award:\nStock options. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n648\n$ 1,353\n$ 2,705\nStock awards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n14,882\n10,445\n11,421\nEmployee stock purchase rights(1) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n999\n5,240\n3,077"},
+            {"page" :  88, "para_index" : 8, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"},
+            {"page" :  88, "para_index" : 9, "content" : "Stock-based compensation by category of expense:\nCost of revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 1,500\n$ 1,602\n$ 1,362\nSales and marketing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,765\n5,667\n6,075\nResearch and development . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n6,039\n6,631\n6,343\nGeneral and administrative . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,225\n3,138\n3,423"},
+            {"page" :  88, "para_index" : 10, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"}
+        ]
+    },
+    {
+        "query" : "What is the percentage change in stock based compensation on sales and marketing between 2018 and 2019?",
+        "answer": "1.73",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" : 88 , "para_index" : 5, "content" : "A summary of our stock-based compensation expense is as follows (in thousands):"},
+            {"page" :  88, "para_index" : 6, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  88, "para_index" : 7, "content" : "Stock-based compensation by type of award:\nStock options. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$\n648\n$ 1,353\n$ 2,705\nStock awards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n14,882\n10,445\n11,421\nEmployee stock purchase rights(1) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n999\n5,240\n3,077"},
+            {"page" :  88, "para_index" : 8, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"},
+            {"page" :  88, "para_index" : 9, "content" : "Stock-based compensation by category of expense:\nCost of revenue . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 1,500\n$ 1,602\n$ 1,362\nSales and marketing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n5,765\n5,667\n6,075\nResearch and development . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n6,039\n6,631\n6,343\nGeneral and administrative . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n3,225\n3,138\n3,423"},
+            {"page" :  88, "para_index" : 10, "content" : "Total. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$16,529\n$17,038\n$17,203"}
+        ]
+    },
+    {
+        "query" : "What is the number of outstanding shares granted as of December 31, 2018?",
+        "answer": "4,674",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  89, "para_index" : 10, "content" : "The following tables summarize our stock option activities and related information:"},
+            {"page" :  89, "para_index" : 11, "content" : "Weighted-\nAverage\nRemaining\nContractual\nTerm (years)"},
+            {"page" :  89, "para_index" : 12, "content" : "Number\nof Shares\n(thousands)"},
+            {"page" :  89, "para_index" : 13, "content" : "Weighted-\nAverage\nExercise Price"},
+            {"page" :  89, "para_index" : 14, "content" : "Aggregate\nIntrinsic Value(1)"},
+            {"page" :  89, "para_index" : 15, "content" : "(thousands)"},
+            {"page" :  89, "para_index" : 16, "content" : "Outstanding as of December 31, 2018 . . . . . . . . . . . . . .\n4,674\n$5.19\nGranted . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n—\n$ —\nExercised. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(842)\n$2.84\nCanceled . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(130)\n$9.41"},
+            {"page" :  89, "para_index" : 17, "content" : "Outstanding as of December 31, 2019 . . . . . . . . . . . . . .\n3,702\n$5.57\n3.52\n$6,395"},
+            {"page" :  89, "para_index" : 18, "content" : "Vested and exercisable as of December 31, 2019. . . . . .\n3,427\n$5.49\n3.56\n$6,210"}
+        ]
+    },
+    {
+        "query" : "What is the number of shares exercised as of December 31, 2018?",
+        "answer": "(842)",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  89, "para_index" : 10, "content" : "The following tables summarize our stock option activities and related information:"},
+            {"page" :  89, "para_index" : 11, "content" : "Weighted-\nAverage\nRemaining\nContractual\nTerm (years)"},
+            {"page" :  89, "para_index" : 12, "content" : "Number\nof Shares\n(thousands)"},
+            {"page" :  89, "para_index" : 13, "content" : "Weighted-\nAverage\nExercise Price"},
+            {"page" :  89, "para_index" : 14, "content" : "Aggregate\nIntrinsic Value(1)"},
+            {"page" :  89, "para_index" : 15, "content" : "(thousands)"},
+            {"page" :  89, "para_index" : 16, "content" : "Outstanding as of December 31, 2018 . . . . . . . . . . . . . .\n4,674\n$5.19\nGranted . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n—\n$ —\nExercised. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(842)\n$2.84\nCanceled . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(130)\n$9.41"},
+            {"page" :  89, "para_index" : 17, "content" : "Outstanding as of December 31, 2019 . . . . . . . . . . . . . .\n3,702\n$5.57\n3.52\n$6,395"},
+            {"page" :  89, "para_index" : 18, "content" : "Vested and exercisable as of December 31, 2019. . . . . .\n3,427\n$5.49\n3.56\n$6,210"}
+        ]
+    },
+    {
+        "query" : "What is the number of shares canceled as of December 31, 2018?",
+        "answer": "(130)",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  89, "para_index" : 10, "content" : "The following tables summarize our stock option activities and related information:"},
+            {"page" :  89, "para_index" : 11, "content" : "Weighted-\nAverage\nRemaining\nContractual\nTerm (years)"},
+            {"page" :  89, "para_index" : 12, "content" : "Number\nof Shares\n(thousands)"},
+            {"page" :  89, "para_index" : 13, "content" : "Weighted-\nAverage\nExercise Price"},
+            {"page" :  89, "para_index" : 14, "content" : "Aggregate\nIntrinsic Value(1)"},
+            {"page" :  89, "para_index" : 15, "content" : "(thousands)"},
+            {"page" :  89, "para_index" : 16, "content" : "Outstanding as of December 31, 2018 . . . . . . . . . . . . . .\n4,674\n$5.19\nGranted . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n—\n$ —\nExercised. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(842)\n$2.84\nCanceled . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(130)\n$9.41"},
+            {"page" :  89, "para_index" : 17, "content" : "Outstanding as of December 31, 2019 . . . . . . . . . . . . . .\n3,702\n$5.57\n3.52\n$6,395"},
+            {"page" :  89, "para_index" : 18, "content" : "Vested and exercisable as of December 31, 2019. . . . . .\n3,427\n$5.49\n3.56\n$6,210"}
+        ]
+    },
+    {
+        "query" : "What is the total amount spent on the canceled shares?",
+        "answer": "-1223.3",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  89, "para_index" : 10, "content" : "The following tables summarize our stock option activities and related information:"},
+            {"page" :  89, "para_index" : 11, "content" : "Weighted-\nAverage\nRemaining\nContractual\nTerm (years)"},
+            {"page" :  89, "para_index" : 12, "content" : "Number\nof Shares\n(thousands)"},
+            {"page" :  89, "para_index" : 13, "content" : "Weighted-\nAverage\nExercise Price"},
+            {"page" :  89, "para_index" : 14, "content" : "Aggregate\nIntrinsic Value(1)"},
+            {"page" :  89, "para_index" : 15, "content" : "(thousands)"},
+            {"page" :  89, "para_index" : 16, "content" : "Outstanding as of December 31, 2018 . . . . . . . . . . . . . .\n4,674\n$5.19\nGranted . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n—\n$ —\nExercised. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(842)\n$2.84\nCanceled . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(130)\n$9.41"},
+            {"page" :  89, "para_index" : 17, "content" : "Outstanding as of December 31, 2019 . . . . . . . . . . . . . .\n3,702\n$5.57\n3.52\n$6,395"},
+            {"page" :  89, "para_index" : 18, "content" : "Vested and exercisable as of December 31, 2019. . . . . .\n3,427\n$5.49\n3.56\n$6,210"}
+        ]
+    },
+    {
+        "query" : "What is difference on the aggregate intrinsic value between Outstanding and Vested and exercisable as of December 31, 2019?",
+        "answer": "185",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  89, "para_index" : 10, "content" : "The following tables summarize our stock option activities and related information:"},
+            {"page" :  89, "para_index" : 11, "content" : "Weighted-\nAverage\nRemaining\nContractual\nTerm (years)"},
+            {"page" :  89, "para_index" : 12, "content" : "Number\nof Shares\n(thousands)"},
+            {"page" :  89, "para_index" : 13, "content" : "Weighted-\nAverage\nExercise Price"},
+            {"page" :  89, "para_index" : 14, "content" : "Aggregate\nIntrinsic Value(1)"},
+            {"page" :  89, "para_index" : 15, "content" : "(thousands)"},
+            {"page" :  89, "para_index" : 16, "content" : "Outstanding as of December 31, 2018 . . . . . . . . . . . . . .\n4,674\n$5.19\nGranted . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n—\n$ —\nExercised. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(842)\n$2.84\nCanceled . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(130)\n$9.41"},
+            {"page" :  89, "para_index" : 17, "content" : "Outstanding as of December 31, 2019 . . . . . . . . . . . . . .\n3,702\n$5.57\n3.52\n$6,395"},
+            {"page" :  89, "para_index" : 18, "content" : "Vested and exercisable as of December 31, 2019. . . . . .\n3,427\n$5.49\n3.56\n$6,210"}
+        ]
+    },
+    {
+        "query" : "What is the difference in outstanding shares as of December 31, 2018 and 2019?",
+        "answer": "972",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  89, "para_index" : 10, "content" : "The following tables summarize our stock option activities and related information:"},
+            {"page" :  89, "para_index" : 11, "content" : "Weighted-\nAverage\nRemaining\nContractual\nTerm (years)"},
+            {"page" :  89, "para_index" : 12, "content" : "Number\nof Shares\n(thousands)"},
+            {"page" :  89, "para_index" : 13, "content" : "Weighted-\nAverage\nExercise Price"},
+            {"page" :  89, "para_index" : 14, "content" : "Aggregate\nIntrinsic Value(1)"},
+            {"page" :  89, "para_index" : 15, "content" : "(thousands)"},
+            {"page" :  89, "para_index" : 16, "content" : "Outstanding as of December 31, 2018 . . . . . . . . . . . . . .\n4,674\n$5.19\nGranted . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n—\n$ —\nExercised. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(842)\n$2.84\nCanceled . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n(130)\n$9.41"},
+            {"page" :  89, "para_index" : 17, "content" : "Outstanding as of December 31, 2019 . . . . . . . . . . . . . .\n3,702\n$5.57\n3.52\n$6,395"},
+            {"page" :  89, "para_index" : 18, "content" : "Vested and exercisable as of December 31, 2019. . . . . .\n3,427\n$5.49\n3.56\n$6,210"}
+        ]
+    },
+    {
+        "query" : "What is the total revenue earned by the company in 2019?",
+        "answer": "$212.628",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 2, "content" : "The following table depicts the disaggregation of revenue by geographic region based on the ship to location\nof our customers and is consistent with how we evaluate our financial performance (in thousands):"},
+            {"page" :  94, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  94, "para_index" : 4, "content" : "Americas. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 89,944\n$112,506\n$122,893\nJapan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n59,454\n55,205\n51,488\nAsia Pacific, excluding Japan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n35,689\n36,897\n33,189\nEMEA. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n27,541\n27,615\n27,859"},
+            {"page" :  94, "para_index" : 5, "content" : "Total . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$212,628\n$232,223\n$235,429"}
+        ]
+    },
+    {
+        "query" : "What is the total revenue earned by the company between 2017 to 2019?",
+        "answer": "680280",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 2, "content" : "The following table depicts the disaggregation of revenue by geographic region based on the ship to location\nof our customers and is consistent with how we evaluate our financial performance (in thousands):"},
+            {"page" :  94, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  94, "para_index" : 4, "content" : "Americas. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 89,944\n$112,506\n$122,893\nJapan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n59,454\n55,205\n51,488\nAsia Pacific, excluding Japan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n35,689\n36,897\n33,189\nEMEA. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n27,541\n27,615\n27,859"},
+            {"page" :  94, "para_index" : 5, "content" : "Total . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$212,628\n$232,223\n$235,429"}
+        ]
+    },
+    {
+        "query" : "What is the total revenue earned in EMEA between 2017 to 2019?",
+        "answer": "83015",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 2, "content" : "The following table depicts the disaggregation of revenue by geographic region based on the ship to location\nof our customers and is consistent with how we evaluate our financial performance (in thousands):"},
+            {"page" :  94, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  94, "para_index" : 4, "content" : "Americas. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 89,944\n$112,506\n$122,893\nJapan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n59,454\n55,205\n51,488\nAsia Pacific, excluding Japan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n35,689\n36,897\n33,189\nEMEA. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n27,541\n27,615\n27,859"},
+            {"page" :  94, "para_index" : 5, "content" : "Total . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$212,628\n$232,223\n$235,429"}
+        ]
+    },
+    {
+        "query" : "What is the change in total revenue between 2018 to 2019?",
+        "answer": "-8.44",
+        "source" : "/app/data/a10-networks-inc_2019.pdf",
+        "gold" : [
+            {"page" :  94, "para_index" : 2, "content" : "The following table depicts the disaggregation of revenue by geographic region based on the ship to location\nof our customers and is consistent with how we evaluate our financial performance (in thousands):"},
+            {"page" :  94, "para_index" : 3, "content" : "Years Ended December 31,\n2019\n2018\n2017"},
+            {"page" :  94, "para_index" : 4, "content" : "Americas. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$ 89,944\n$112,506\n$122,893\nJapan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n59,454\n55,205\n51,488\nAsia Pacific, excluding Japan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n35,689\n36,897\n33,189\nEMEA. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n27,541\n27,615\n27,859"},
+            {"page" :  94, "para_index" : 5, "content" : "Total . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .\n$212,628\n$232,223\n$235,429"}
+        ]
     }
 ]
 
+    
