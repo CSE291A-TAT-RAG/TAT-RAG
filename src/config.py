@@ -49,6 +49,15 @@ class EmbeddingConfig:
 
 
 @dataclass
+class RAGASEvaluatorConfig:
+    """RAGAS evaluation settings."""
+    timeout: int = int(os.getenv("RAGAS_TIMEOUT", "180"))
+    max_workers: int = int(os.getenv("RAGAS_MAX_WORKERS", "2"))
+    max_retries: int = int(os.getenv("RAGAS_MAX_RETRIES", "3"))
+    max_wait: int = int(os.getenv("RAGAS_MAX_WAIT", "30"))
+
+
+@dataclass
 class RAGConfig:
     """RAG pipeline configuration."""
     top_k: int = int(os.getenv("RAG_TOP_K", "5"))
@@ -59,6 +68,7 @@ class RAGConfig:
     qdrant: QdrantConfig = None
     llm: LLMConfig = None
     embedding: EmbeddingConfig = None
+    ragas: RAGASEvaluatorConfig = None
 
     def __post_init__(self):
         if self.qdrant is None:
@@ -67,6 +77,8 @@ class RAGConfig:
             self.llm = LLMConfig()
         if self.embedding is None:
             self.embedding = EmbeddingConfig()
+        if self.ragas is None:
+            self.ragas = RAGASEvaluatorConfig()
 
 
 # Default configuration instance

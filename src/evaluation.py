@@ -8,9 +8,9 @@ from datasets import Dataset
 from ragas import evaluate
 
 try:
-    from ragas.executor import ExecutorOptions  # type: ignore
+    from ragas.executor import RunConfig  # type: ignore
 except ImportError:
-    ExecutorOptions = None
+    RunConfig = None
 from ragas.metrics import (
     faithfulness,
     answer_relevancy,
@@ -129,7 +129,8 @@ class RAGEvaluator:
         if isinstance(llm_provider, OllamaProvider):
             chat_model = ChatOllama(
                 model=llm_provider.model_name,
-                base_url=llm_provider.base_url
+                base_url=llm_provider.base_url,
+                format="text",  # force plain-text outputs to satisfy ragas parsers
             )
         elif isinstance(llm_provider, BedrockProvider):
             # Bedrock with Claude models (native ChatBedrock support)
@@ -154,10 +155,13 @@ class RAGEvaluator:
                 "llm": chat_model,
                 "embeddings": self.rag_pipeline.embedding_provider,
             }
-            if ExecutorOptions is not None:
-                kwargs["executor"] = ExecutorOptions(
-                    timeout=self.rag_pipeline.config.ragas.timeout,
-                    max_workers=self.rag_pipeline.config.ragas.max_workers,
+            if RunConfig is not None:
+                ragas_cfg = self.rag_pipeline.config.ragas
+                kwargs["run_config"] = RunConfig(
+                    timeout=ragas_cfg.timeout,
+                    max_workers=ragas_cfg.max_workers,
+                    max_retries=ragas_cfg.max_retries,
+                    max_wait=ragas_cfg.max_wait,
                 )
 
             result = evaluate(
