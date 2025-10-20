@@ -1,18 +1,19 @@
 """Data ingestion module for processing and storing documents in Qdrant."""
 
 import logging
-from typing import List, Dict, Any, Optional
-from pathlib import Path
+from typing import List, Dict, Any
 import uuid
 import hashlib
+import json
+import zipfile
+import io
+import csv
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .config import RAGConfig
 from .embedding_providers import create_embedding_provider
-from .parsers import create_parser
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,11 +48,6 @@ class DocumentIngestion:
             config.qdrant.vector_size = self.embedding_provider.get_dimension()
             logger.info(f"Set vector size to {config.qdrant.vector_size} based on embedding model")
 
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=config.chunk_size,
-            chunk_overlap=config.chunk_overlap,
-            length_function=len,
-        )
         self._ensure_collection()
 
     def _ensure_collection(self):
@@ -71,62 +67,119 @@ class DocumentIngestion:
         else:
             logger.info(f"Collection {self.config.qdrant.collection_name} already exists")
 
-    def load_documents(
-        self,
-        path: str,
-        file_type: str = "txt",
-        parser_type: str = "langchain"
-    ) -> List[Dict[str, Any]]:
+    def load_chunks_from_zip(self, zip_path: str) -> List[Dict[str, Any]]:
         """
-        Load documents from a file or directory using specified parser.
+        Load pre-created chunks from a zip archive containing JSONL metadata and CSV tables.
 
         Args:
-            path: Path to file or directory
-            file_type: Type of files to load (txt, pdf)
-            parser_type: Parser to use ("langchain" or "fitz")
-                - "langchain": Simple, fast loading (default)
-                - "fitz": Advanced PDF parsing with better text extraction
+            zip_path: Path to the zip archive
 
         Returns:
-            List of document dictionaries with content and metadata
+            List of chunk dictionaries compatible with downstream storage
         """
-        # Create parser instance
-        parser = create_parser(parser_type)
+        logger.info(f"Loading pre-chunked data from zip archive: {zip_path}")
 
-        # Parse documents
-        documents = parser.parse(path, file_type=file_type)
+        chunks_by_doc: Dict[str, List[Dict[str, Any]]] = {}
 
-        logger.info(
-            f"Loaded {len(documents)} documents from {path} "
-            f"using {parser_type} parser"
-        )
-        return documents
+        with zipfile.ZipFile(zip_path) as archive:
+            try:
+                jsonl_entry = archive.open("chunks_all.jsonl")
+            except KeyError as exc:
+                raise FileNotFoundError("Expected 'chunks_all.jsonl' inside archive") from exc
 
-    def chunk_documents(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Split documents into chunks.
+            with jsonl_entry:
+                for raw_line in jsonl_entry:
+                    if not raw_line.strip():
+                        continue
+                    record = json.loads(raw_line.decode("utf-8-sig"))
+                    metadata = dict(record.get("metadata", {}))
+                    doc_id = metadata.get("doc_id", "unknown")
+                    content = record.get("text", "")
 
-        Args:
-            documents: List of document dictionaries
+                    metadata.setdefault("source", doc_id)
+                    metadata.setdefault("parser", "prechunked")
 
-        Returns:
-            List of chunked document dictionaries
-        """
-        chunks = []
-        for doc in documents:
-            text_chunks = self.text_splitter.split_text(doc["content"])
-            for i, chunk in enumerate(text_chunks):
-                chunks.append({
-                    "content": chunk,
-                    "metadata": {
-                        **doc["metadata"],
-                        "chunk_id": i,
-                        "total_chunks": len(text_chunks)
+                    if metadata.get("type") == "table" and content:
+                        table_path = content
+                        metadata["table_path"] = table_path
+                        try:
+                            with archive.open(table_path) as table_file:
+                                table_text = io.TextIOWrapper(table_file, encoding="utf-8", newline="")
+                                reader = csv.reader(table_text)
+                                rows = [" | ".join(cell.strip() for cell in row) for row in reader]
+                                # Drop empty rows to keep embeddings focused on data
+                                rows = [row for row in rows if row]
+                                content = "\n".join(rows)
+                        except KeyError:
+                            logger.warning("Missing table CSV '%s' referenced in JSONL", table_path)
+                            content = ""
+
+                    chunk = {
+                        "content": self._add_metadata_context(content, metadata, doc_id),
+                        "metadata": metadata
                     }
+                    chunks_by_doc.setdefault(doc_id, []).append(chunk)
+
+        chunks: List[Dict[str, Any]] = []
+        for doc_id, doc_chunks in chunks_by_doc.items():
+            total = len(doc_chunks)
+            for index, chunk in enumerate(doc_chunks):
+                metadata = dict(chunk["metadata"])
+                metadata["chunk_id"] = index
+                metadata["total_chunks"] = total
+                metadata.setdefault("source", doc_id)
+                chunks.append({
+                    "content": chunk["content"],
+                    "metadata": metadata
                 })
 
-        logger.info(f"Created {len(chunks)} chunks from {len(documents)} documents")
+        logger.info(
+            "Loaded %d chunks across %d documents from %s",
+            len(chunks),
+            len(chunks_by_doc),
+            zip_path
+        )
         return chunks
+
+    def _add_metadata_context(self, content: str, metadata: Dict[str, Any], doc_id: str) -> str:
+        """
+        Prefix raw chunk content with key metadata to improve retrievability.
+
+        Args:
+            content: Original chunk text
+            metadata: Chunk metadata dictionary
+            doc_id: Document identifier the chunk belongs to
+
+        Returns:
+            Enriched content string including metadata cues
+        """
+        context_parts = []
+
+        source = metadata.get("source") or doc_id
+        if source:
+            context_parts.append(f"Document: {source}")
+
+        section = metadata.get("section_path")
+        if section:
+            context_parts.append(f"Section: {section}")
+
+        page = metadata.get("page")
+        if page is not None:
+            context_parts.append(f"Page: {page}")
+
+        chunk_type = metadata.get("type")
+        if chunk_type:
+            context_parts.append(f"Content type: {chunk_type}")
+
+        if not context_parts:
+            return content
+
+        context_header = " | ".join(str(part) for part in context_parts)
+
+        if content:
+            return f"{context_header}\n\n{content}"
+
+        return context_header
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         """
@@ -233,19 +286,13 @@ class DocumentIngestion:
     def ingest(
         self,
         path: str,
-        file_type: str = "txt",
-        parser_type: str = "langchain",
         overwrite: bool = True
     ) -> int:
         """
         Complete ingestion pipeline: load, chunk, embed, and store.
 
         Args:
-            path: Path to file or directory
-            file_type: Type of files to load (txt, pdf)
-            parser_type: Parser to use ("langchain" or "fitz")
-                - "langchain": Simple, fast loading (default)
-                - "fitz": Advanced PDF parsing for financial reports
+            path: Path to zip archive containing pre-chunked data
             overwrite: If True, replace existing chunks from the same source (default: True)
 
         Returns:
@@ -253,10 +300,11 @@ class DocumentIngestion:
         """
         logger.info(
             f"Starting ingestion pipeline for: {path} "
-            f"(parser={parser_type}, overwrite={overwrite})"
+            f"(overwrite={overwrite})"
         )
-        documents = self.load_documents(path, file_type, parser_type)
-        chunks = self.chunk_documents(documents)
+        if not path.lower().endswith(".zip"):
+            raise ValueError("Only zip archives containing pre-chunked data are supported. Please provide a .zip file.")
+        chunks = self.load_chunks_from_zip(path)
         count = self.store_chunks(chunks, overwrite=overwrite)
         logger.info(f"Ingestion complete. Stored {count} chunks.")
         return count

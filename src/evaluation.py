@@ -6,6 +6,11 @@ import pandas as pd
 
 from datasets import Dataset
 from ragas import evaluate
+
+try:
+    from ragas.executor import ExecutorOptions  # type: ignore
+except ImportError:
+    ExecutorOptions = None
 from ragas.metrics import (
     faithfulness,
     answer_relevancy,
@@ -17,9 +22,10 @@ from ragas.metrics import (
 
 from langchain_ollama import ChatOllama
 from langchain_aws import ChatBedrock
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .retrieval import RAGPipeline
-from .llm_providers import OllamaProvider, BedrockProvider
+from .llm_providers import OllamaProvider, BedrockProvider, GeminiProvider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -132,22 +138,125 @@ class RAGEvaluator:
                 region_name=llm_provider.region_name,
                 client=llm_provider.client
             )
+        elif isinstance(llm_provider, GeminiProvider):
+            chat_model = ChatGoogleGenerativeAI(
+                model=llm_provider.model_name_raw,
+                google_api_key=llm_provider.api_key,
+                temperature=self.rag_pipeline.config.llm.temperature
+            )
         else:
             raise ValueError(f"Unsupported LLM provider type: {type(llm_provider)}")
 
         # Run evaluation
         try:
+            kwargs = {
+                "metrics": metrics,
+                "llm": chat_model,
+                "embeddings": self.rag_pipeline.embedding_provider,
+            }
+            if ExecutorOptions is not None:
+                kwargs["executor"] = ExecutorOptions(
+                    timeout=self.rag_pipeline.config.ragas.timeout,
+                    max_workers=self.rag_pipeline.config.ragas.max_workers,
+                )
+
             result = evaluate(
                 dataset,
-                metrics=metrics,
-                llm=chat_model,
-                embeddings=self.rag_pipeline.embedding_provider
+                **kwargs
             )
             logger.info("Evaluation completed successfully")
             return result
         except Exception as e:
             logger.error(f"Evaluation failed: {str(e)}")
             raise
+
+    def precompute_answers(
+        self,
+        questions: List[str],
+        ground_truths: Optional[List[str]] = None,
+        top_k: Optional[int] = None,
+        output_path: Optional[str] = None,
+        include_retrieved_docs: bool = False
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate answers/contexts ahead of time so RAGAS only scores cached data.
+        """
+        results = self.rag_pipeline.batch_query(questions, top_k=top_k)
+        cached_results: List[Dict[str, Any]] = []
+
+        for idx, result in enumerate(results):
+            cache_entry: Dict[str, Any] = {
+                "question": result.get("query", questions[idx]),
+                "answer": result.get("answer"),
+                "contexts": result.get("contexts", []),
+                "model": result.get("model"),
+                "usage": result.get("usage", {}),
+            }
+            if include_retrieved_docs:
+                cache_entry["retrieved_docs"] = result.get("retrieved_docs", [])
+            if ground_truths is not None:
+                cache_entry["ground_truth"] = ground_truths[idx] if idx < len(ground_truths) else None
+                cache_entry["reference"] = cache_entry["ground_truth"]
+            cached_results.append(cache_entry)
+
+        if output_path:
+            import json
+
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(cached_results, f, ensure_ascii=False, indent=2)
+            logger.info(f"Cached {len(cached_results)} answers to {output_path}")
+
+        return cached_results
+
+    def evaluate_from_cache(
+        self,
+        cached_results: List[Dict[str, Any]],
+        metrics: Optional[List] = None
+    ) -> Dict[str, Any]:
+        """
+        Run evaluation using precomputed answers/contexts.
+        """
+        if not cached_results:
+            raise ValueError("Cached results list is empty")
+
+        questions = [item["question"] for item in cached_results]
+        answers = [item.get("answer", "") for item in cached_results]
+        contexts = [item.get("contexts", []) for item in cached_results]
+
+        ground_truths = None
+        if any("ground_truth" in item or "reference" in item for item in cached_results):
+            ground_truths = []
+            for item in cached_results:
+                ground_truth = item.get("ground_truth", item.get("reference"))
+                ground_truths.append(ground_truth if ground_truth is not None else "")
+            if all(gt == "" for gt in ground_truths):
+                ground_truths = None
+
+        return self.evaluate(
+            questions=questions,
+            ground_truths=ground_truths,
+            answers=answers,
+            contexts=contexts,
+            metrics=metrics
+        )
+
+    def evaluate_from_cache_file(
+        self,
+        cache_path: str,
+        metrics: Optional[List] = None
+    ) -> Dict[str, Any]:
+        """
+        Load cached answers/contexts from disk and evaluate.
+        """
+        import json
+
+        with open(cache_path, "r", encoding="utf-8") as f:
+            cached_results = json.load(f)
+
+        if not isinstance(cached_results, list):
+            raise ValueError("Cached results file must contain a list of entries")
+
+        return self.evaluate_from_cache(cached_results, metrics=metrics)
 
     def evaluate_from_file(
         self,

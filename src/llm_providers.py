@@ -68,32 +68,70 @@ class OllamaProvider(LLMProvider):
             payload = {
                 "model": self.model_name,
                 "messages": messages,
-                "stream": False,
+                "stream": True,
                 "options": {
                     "temperature": temperature,
-                    "num_predict": max_tokens
+                    "num_predict": max_tokens,
+                    "thinking": {
+                        "enabled": False
+                    }
                 }
             }
 
-            # Make request to Ollama
+            # Make request to Ollama (streaming)
             response = requests.post(
                 self.api_url,
                 json=payload,
-                timeout=300  # 5 minutes timeout
+                timeout=300,  # 5 minutes timeout
+                stream=True
             )
             response.raise_for_status()
 
-            # Parse response
-            result = response.json()
+            content_parts = []
+            usage = {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+            }
+            last_chunk: Dict[str, Any] = {}
+
+            for line in response.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+
+                try:
+                    chunk = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.warning("Failed to decode Ollama chunk: %s", line)
+                    continue
+
+                last_chunk = chunk
+
+                if "error" in chunk:
+                    raise RuntimeError(chunk["error"])
+
+                message = chunk.get("message", {})
+                text = message.get("content", "")
+                if text:
+                    content_parts.append(text)
+
+                if "prompt_eval_count" in chunk:
+                    usage["prompt_tokens"] = chunk.get("prompt_eval_count", usage["prompt_tokens"])
+                if "eval_count" in chunk:
+                    usage["completion_tokens"] = chunk.get("eval_count", usage["completion_tokens"])
+                if chunk.get("done"):
+                    break
+
+            usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]
+
+            answer = "".join(content_parts).strip()
+            if not answer and last_chunk:
+                answer = (last_chunk.get("response") or "").strip()
 
             return {
-                "content": result.get("message", {}).get("content", ""),
+                "content": answer,
                 "model": self.model_name,
-                "usage": {
-                    "prompt_tokens": result.get("prompt_eval_count", 0),
-                    "completion_tokens": result.get("eval_count", 0),
-                    "total_tokens": result.get("prompt_eval_count", 0) + result.get("eval_count", 0)
-                }
+                "usage": usage
             }
         except requests.exceptions.RequestException as e:
             logger.error(f"Ollama generation failed: {str(e)}")
@@ -248,6 +286,25 @@ class BedrockProvider(LLMProvider):
             )
 
 
+class GeminiProvider(LLMProvider):
+    """Placeholder Gemini provider (not implemented in this build)."""
+
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError(
+            "GeminiProvider is not available in this configuration."
+        )
+
+    def generate(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: int = 1000
+    ) -> Dict[str, Any]:
+        raise NotImplementedError(
+            "GeminiProvider is not available in this configuration."
+        )
+
+
 def create_llm_provider(
     provider_type: str,
     model_name: str,
@@ -292,6 +349,9 @@ def create_llm_provider(
             aws_session_token=aws_session_token,
             profile_name=aws_profile_name
         )
+
+    elif provider_type == "gemini":
+        return GeminiProvider()
 
     else:
         raise ValueError(f"Unknown provider type: {provider_type}. Use 'ollama' or 'bedrock'")

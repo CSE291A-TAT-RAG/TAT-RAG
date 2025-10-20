@@ -16,26 +16,6 @@ services:
       - rag-network
     restart: unless-stopped
 
-  # Ollama LLM service
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   container_name: ollama
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama_models:/root/.ollama
-  #   networks:
-  #     - rag-network
-  #   restart: unless-stopped
-    # GPU support (uncomment if you have NVIDIA GPU)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-
   # RAG application
   rag-app:
     build: .
@@ -55,7 +35,6 @@ services:
       - ./models:/app/models              # Mount models directory
       - ./src:/app/src                    # Mount source code for development
       - ./tests:/app/tests                # Mount tests directory
-      - ./examples:/app/examples          # Mount examples directory
       - ./golden_set:/app/golden_set      # Mount golden set evaluations
       - ./main.py:/app/main.py            # Mount main script
       - ./app.py:/app/app.py              # Mount Streamlit app
