@@ -72,6 +72,8 @@ class RAGEvaluator:
 
         if ground_truths is not None:
             data["ground_truth"] = ground_truths
+            # Newer versions of ragas expect the alias `reference`
+            data["reference"] = ground_truths
 
         dataset = Dataset.from_dict(data)
         logger.info(f"Prepared evaluation dataset with {len(questions)} samples")
@@ -172,6 +174,53 @@ class RAGEvaluator:
         ground_truths = None
         if ground_truth_col and ground_truth_col in df.columns:
             ground_truths = df[ground_truth_col].tolist()
+
+        return self.evaluate(questions, ground_truths=ground_truths, metrics=metrics)
+
+    def evaluate_from_json(
+        self,
+        json_path: str,
+        question_key: str = "query",
+        ground_truth_key: str = "answer",
+        metrics: Optional[List] = None
+    ) -> Dict[str, Any]:
+        """
+        Evaluate RAG pipeline from a JSON list of evaluation samples.
+
+        Args:
+            json_path: Path to JSON file (list of dicts) containing evaluation data
+            question_key: Field name that stores the question text
+            ground_truth_key: Field name that stores the ground truth answer
+            metrics: List of RAGAS metrics to use
+
+        Returns:
+            Dictionary with evaluation results
+        """
+        import json
+
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if not isinstance(data, list):
+            raise ValueError("JSON evaluation file must contain a list of objects")
+
+        questions = []
+        ground_truths = []
+        for item in data:
+            if question_key not in item:
+                raise KeyError(f"Missing '{question_key}' field in evaluation sample: {item}")
+            questions.append(item[question_key])
+            if ground_truth_key in item:
+                ground_truths.append(item[ground_truth_key])
+            else:
+                ground_truths.append(None)
+
+        # If every ground truth is None, treat as missing
+        if all(gt is None for gt in ground_truths):
+            ground_truths = None
+        else:
+            # Replace missing ones with empty string to keep length alignment
+            ground_truths = [gt if gt is not None else "" for gt in ground_truths]
 
         return self.evaluate(questions, ground_truths=ground_truths, metrics=metrics)
 
