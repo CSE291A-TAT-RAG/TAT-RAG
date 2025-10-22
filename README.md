@@ -20,9 +20,13 @@ A production-ready Retrieval-Augmented Generation stack that pairs **Qdrant** ve
 # 1. Configure environment
 cp .env.example .env
 # edit .env to point at your Ollama/GPU settings as needed
+# optional: enable hybrid retrieval by setting HYBRID_SEARCH_ENABLED=true
 
 # 2. Launch services
 docker-compose up -d
+
+# (Optional) Reset Qdrant collection before re-ingesting
+docker-compose exec rag-app python -c "from qdrant_client import QdrantClient; QdrantClient(host='qdrant', port=6333).delete_collection('documents')"
 
 # 3. Ingest pre-chunked data (JSONL + CSV packed in a zip)
 docker-compose exec rag-app python main.py ingest /app/data/chunks_all.zip
@@ -58,6 +62,7 @@ Update `.env` to control the pipeline:
 
 - `LLM_PROVIDER`, `LLM_MODEL`, `OLLAMA_BASE_URL`: select the generator model. Increase `LLM_MAX_TOKENS` when using thinking-capable models.
 - `RAG_TOP_K`, `RAG_SCORE_THRESHOLD`: retrieval fan-out and similarity gating.
+- `HYBRID_SEARCH_ENABLED`: set to `true` to fuse vector search with BM25 keyword search via Qdrant's Fusion API (requires re-ingestion after toggling).
 - `EMBEDDING_MODEL`, `EMBEDDING_DEVICE`, `EMBEDDING_CACHE_DIR`: embedding backend configuration.
 - `QDRANT_HOST`, `QDRANT_COLLECTION`: vector store parameters (overridden inside Docker to `qdrant`).
 
@@ -121,7 +126,7 @@ GPU passthrough is pre-configured in `docker-compose.yml`. Comment the `deploy.r
 ## Tech Stack
 - **Vector DB:** Qdrant (cosine similarity)
 - **Embeddings:** BAAI BGE-M3 (SentenceTransformers)
-- **LLMs:** Ollama (default) with optional Bedrock/Gemini adapters
+- **LLMs:** Ollama (default) with optional Bedrock/Gemini/Vertex adapters
 - **Evaluation:** RAGAS
 - **Frontend:** Streamlit
 

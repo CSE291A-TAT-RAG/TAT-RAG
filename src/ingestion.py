@@ -10,7 +10,16 @@ import io
 import csv
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
+from qdrant_client.models import (
+    Distance,
+    VectorParams,
+    PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
+    TextIndexParams,
+    TokenizerType,
+)
 
 from .config import RAGConfig
 from .embedding_providers import create_embedding_provider
@@ -32,7 +41,8 @@ class DocumentIngestion:
         self.config = config
         self.qdrant_client = QdrantClient(
             host=config.qdrant.host,
-            port=config.qdrant.port
+            port=config.qdrant.port,
+            timeout=config.qdrant.timeout,
         )
 
         # Initialize embedding provider
@@ -49,6 +59,8 @@ class DocumentIngestion:
             logger.info(f"Set vector size to {config.qdrant.vector_size} based on embedding model")
 
         self._ensure_collection()
+        if self.config.hybrid_search:
+            self._ensure_text_index()
 
     def _ensure_collection(self):
         """Create Qdrant collection if it doesn't exist."""
@@ -56,16 +68,52 @@ class DocumentIngestion:
         collection_names = [c.name for c in collections]
 
         if self.config.qdrant.collection_name not in collection_names:
+            distance_name = (self.config.qdrant.distance_metric or "Cosine").upper()
+            try:
+                distance = Distance[distance_name]
+            except KeyError:
+                logger.warning(
+                    "Unsupported distance metric '%s'. Falling back to COSINE.",
+                    self.config.qdrant.distance_metric,
+                )
+                distance = Distance.COSINE
+            else:
+                logger.info("Using Qdrant distance metric: %s", distance_name)
+
             logger.info(f"Creating collection: {self.config.qdrant.collection_name}")
             self.qdrant_client.create_collection(
                 collection_name=self.config.qdrant.collection_name,
                 vectors_config=VectorParams(
                     size=self.config.qdrant.vector_size,
-                    distance=Distance.COSINE
+                    distance=distance
                 ),
             )
         else:
             logger.info(f"Collection {self.config.qdrant.collection_name} already exists")
+
+    def _ensure_text_index(self) -> None:
+        """
+        Ensure a full-text index exists on the chunk content for hybrid search.
+        """
+        try:
+            self.qdrant_client.create_payload_index(
+                collection_name=self.config.qdrant.collection_name,
+                field_name="content",
+                field_schema=TextIndexParams(
+                    type="text",
+                    tokenizer=TokenizerType.WORD,
+                    min_token_len=2,
+                    max_token_len=15,
+                    lowercase=True,
+                ),
+            )
+            logger.info("Created full-text index on 'content' field for hybrid search")
+        except Exception as exc:  # Qdrant returns error if index already exists
+            message = str(exc).lower()
+            if "already exists" in message:
+                logger.debug("Full-text index on 'content' already exists")
+            else:
+                logger.warning("Failed to create full-text index on 'content': %s", exc)
 
     def load_chunks_from_zip(self, zip_path: str) -> List[Dict[str, Any]]:
         """
@@ -271,7 +319,7 @@ class DocumentIngestion:
             points.append(point)
 
         # Upload in batches
-        batch_size = 100
+        batch_size = 50
         for i in range(0, len(points), batch_size):
             batch = points[i:i + batch_size]
             self.qdrant_client.upsert(
