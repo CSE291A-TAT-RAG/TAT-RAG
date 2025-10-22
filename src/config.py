@@ -18,11 +18,12 @@ class QdrantConfig:
 @dataclass
 class LLMConfig:
     """Large Language Model configuration."""
-    # Provider: 'ollama' or 'bedrock'
+    # Provider: 'ollama', 'bedrock', or 'gemini'
     provider: str = os.getenv("LLM_PROVIDER", "ollama")
     model_name: str = os.getenv("LLM_MODEL", "qwen2.5:8b")
     temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "1000"))
+    request_interval: float = float(os.getenv("LLM_REQUEST_INTERVAL", "0"))
 
     # Ollama specific
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -33,6 +34,9 @@ class LLMConfig:
     aws_secret_access_key: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
     aws_session_token: Optional[str] = os.getenv("AWS_SESSION_TOKEN")
     aws_profile_name: Optional[str] = os.getenv("AWS_PROFILE_NAME")
+
+    # Gemini specific
+    gemini_api_key: Optional[str] = os.getenv("GEMINI_API_KEY")
 
 
 @dataclass

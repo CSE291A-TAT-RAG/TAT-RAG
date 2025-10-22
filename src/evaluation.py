@@ -22,13 +22,87 @@ from ragas.metrics import (
 
 from langchain_ollama import ChatOllama
 from langchain_aws import ChatBedrock
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import BaseMessage, AIMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
+from pydantic import ConfigDict, Field
 
 from .retrieval import RAGPipeline
 from .llm_providers import OllamaProvider, BedrockProvider, GeminiProvider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class GeminiChatAdapter(BaseChatModel):
+    """Minimal LangChain chat model wrapper over GeminiProvider for RAGAS."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    provider: GeminiProvider = Field(...)
+    temperature: float = Field(...)
+    max_tokens: int = Field(...)
+
+    @staticmethod
+    def _flatten_content(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: List[str] = []
+            for item in content:
+                if isinstance(item, dict) and "text" in item:
+                    parts.append(str(item["text"]))
+                else:
+                    parts.append(str(item))
+            return "".join(parts)
+        return "" if content is None else str(content)
+
+    def _convert_messages(self, messages: List[BaseMessage]) -> List[Dict[str, str]]:
+        converted: List[Dict[str, str]] = []
+        for msg in messages:
+            role_type = getattr(msg, "type", "user")
+            if role_type in ("ai", "assistant"):
+                role = "assistant"
+            elif role_type == "system":
+                role = "system"
+            else:
+                role = "user"
+
+            converted.append({
+                "role": role,
+                "content": self._flatten_content(msg.content).strip(),
+            })
+        return converted
+
+    def _generate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[Any] = None,
+        **kwargs: Any
+    ) -> ChatResult:
+        converted_messages = self._convert_messages(messages)
+        response = self.provider.generate(
+            messages=converted_messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        text = response.get("content", "") or ""
+        ai_message = AIMessage(content=text)
+        generation = ChatGeneration(
+            message=ai_message,
+            text=text,
+            generation_info={"usage": response.get("usage")}
+        )
+        llm_output = {
+            "usage": response.get("usage"),
+            "model": response.get("model"),
+        }
+        return ChatResult(generations=[generation], llm_output=llm_output)
+
+    @property
+    def _llm_type(self) -> str:
+        return "gemini-provider-adapter"
 
 
 class RAGEvaluator:
@@ -130,7 +204,6 @@ class RAGEvaluator:
             chat_model = ChatOllama(
                 model=llm_provider.model_name,
                 base_url=llm_provider.base_url,
-                format="text",  # force plain-text outputs to satisfy ragas parsers
             )
         elif isinstance(llm_provider, BedrockProvider):
             # Bedrock with Claude models (native ChatBedrock support)
@@ -140,10 +213,10 @@ class RAGEvaluator:
                 client=llm_provider.client
             )
         elif isinstance(llm_provider, GeminiProvider):
-            chat_model = ChatGoogleGenerativeAI(
-                model=llm_provider.model_name_raw,
-                google_api_key=llm_provider.api_key,
-                temperature=self.rag_pipeline.config.llm.temperature
+            chat_model = GeminiChatAdapter(
+                provider=llm_provider,
+                temperature=self.rag_pipeline.config.llm.temperature,
+                max_tokens=self.rag_pipeline.config.llm.max_tokens
             )
         else:
             raise ValueError(f"Unsupported LLM provider type: {type(llm_provider)}")

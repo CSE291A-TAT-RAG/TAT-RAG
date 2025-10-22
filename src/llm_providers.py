@@ -1,8 +1,9 @@
 """LLM provider abstraction layer supporting Ollama and AWS Bedrock."""
 
 import logging
+import time
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import json
 import requests
 
@@ -11,7 +12,6 @@ try:
     BEDROCK_AVAILABLE = True
 except ImportError:
     BEDROCK_AVAILABLE = False
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -287,12 +287,113 @@ class BedrockProvider(LLMProvider):
 
 
 class GeminiProvider(LLMProvider):
-    """Placeholder Gemini provider (not implemented in this build)."""
+    """Google Gemini LLM provider using the google-generativeai SDK."""
 
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError(
-            "GeminiProvider is not available in this configuration."
-        )
+    def __init__(
+        self,
+        model_name: str = "gemini-1.5-pro",
+        api_key: Optional[str] = None,
+        request_interval: float = 0.0
+    ):
+        if not api_key:
+            raise ValueError(
+                "Gemini API key is missing. Set the GEMINI_API_KEY environment variable."
+            )
+
+        self.model_name = model_name
+        self.model_name_raw = model_name
+        self.api_key = api_key
+        self.request_interval = max(request_interval or 0.0, 0.0)
+        self._last_request_ts: Optional[float] = None
+        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent"
+        self.session = requests.Session()
+        logger.info(f"Initialized Gemini provider with model: {model_name}")
+
+    def _respect_rate_limit(self) -> None:
+        if self.request_interval <= 0:
+            return
+
+        if self._last_request_ts is None:
+            return
+
+        elapsed = time.monotonic() - self._last_request_ts
+        sleep_for = self.request_interval - elapsed
+        if sleep_for > 0:
+            time.sleep(sleep_for)
+
+    @staticmethod
+    def _convert_messages(messages: List[Dict[str, str]]) -> Tuple[Optional[str], List[Dict[str, Any]]]:
+        system_instruction_parts: List[str] = []
+        contents: List[Dict[str, Any]] = []
+
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = (msg.get("content") or "").strip()
+            if not content:
+                continue
+
+            if role == "system":
+                system_instruction_parts.append(content)
+                continue
+
+            gemini_role = "model" if role == "assistant" else "user"
+            contents.append({
+                "role": gemini_role,
+                "parts": [{"text": content}],
+            })
+
+        system_instruction = "\n".join(system_instruction_parts) if system_instruction_parts else None
+        return system_instruction, contents
+
+    @staticmethod
+    def _collect_text_fragments(payload: Any) -> List[str]:
+        fragments: List[str] = []
+
+        if isinstance(payload, str):
+            text = payload.strip()
+            if text:
+                fragments.append(text)
+        elif isinstance(payload, (int, float)):
+            fragments.append(str(payload))
+        elif isinstance(payload, dict):
+            text_field = payload.get("text")
+            if isinstance(text_field, str) and text_field.strip():
+                fragments.append(text_field.strip())
+
+            preferred_keys = [
+                "answer",
+                "statement",
+                "reason",
+                "summary",
+                "explanation",
+                "content",
+                "message",
+            ]
+            for key in preferred_keys:
+                if key in payload:
+                    fragments.extend(GeminiProvider._collect_text_fragments(payload[key]))
+
+            for key, value in payload.items():
+                if key in preferred_keys or key == "text":
+                    continue
+                fragments.extend(GeminiProvider._collect_text_fragments(value))
+        elif isinstance(payload, list):
+            for item in payload:
+                fragments.extend(GeminiProvider._collect_text_fragments(item))
+
+        return [frag for frag in fragments if frag]
+
+    @classmethod
+    def _normalize_json_text(cls, text: str) -> Optional[str]:
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+
+        fragments = cls._collect_text_fragments(parsed)
+        if not fragments:
+            return None
+        return " ".join(fragments).strip()
 
     def generate(
         self,
@@ -300,9 +401,93 @@ class GeminiProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int = 1000
     ) -> Dict[str, Any]:
-        raise NotImplementedError(
-            "GeminiProvider is not available in this configuration."
-        )
+        self._respect_rate_limit()
+        system_instruction, contents = self._convert_messages(messages)
+
+        if not contents:
+            raise ValueError("Gemini provider received no user/assistant messages to process.")
+
+        generation_config: Dict[str, Any] = {
+            "temperature": temperature,
+        }
+        if max_tokens:
+            generation_config["maxOutputTokens"] = max_tokens
+
+        payload: Dict[str, Any] = {
+            "contents": contents,
+            "generationConfig": generation_config,
+        }
+
+        if system_instruction:
+            payload["systemInstruction"] = {
+                "parts": [{"text": system_instruction}],
+            }
+
+        try:
+            response = self.session.post(
+                self.api_url,
+                params={"key": self.api_key},
+                json=payload,
+                timeout=60,
+            )
+            self._last_request_ts = time.monotonic()
+        except requests.RequestException as exc:
+            logger.error(f"Gemini request failed: {exc}")
+            raise RuntimeError(f"Failed to generate with Gemini. Error: {exc}") from exc
+
+        if not response.ok:
+            logger.error(
+                "Gemini API returned error %s: %s",
+                response.status_code,
+                response.text,
+            )
+            raise RuntimeError(
+                f"Gemini API request failed with status {response.status_code}: {response.text}"
+            )
+
+        data = response.json()
+        prompt_feedback = data.get("promptFeedback") or {}
+        block_reason = prompt_feedback.get("blockReason")
+        if block_reason and block_reason != "BLOCK_REASON_UNSPECIFIED":
+            logger.error(f"Gemini blocked the prompt: {block_reason}")
+            raise RuntimeError(f"Gemini blocked the prompt. Reason: {block_reason}")
+
+        candidates = data.get("candidates") or []
+        text_content = ""
+        for candidate in candidates:
+            content = candidate.get("content", {})
+            parts = content.get("parts", [])
+            for part in parts:
+                part_text = part.get("text")
+                if part_text:
+                    text_content += part_text
+            if text_content:
+                break
+        text_content = text_content.strip()
+
+        if text_content.startswith("{") or text_content.startswith("["):
+            normalized = self._normalize_json_text(text_content)
+            if normalized:
+                text_content = normalized
+
+        usage_meta = data.get("usageMetadata") or {}
+        prompt_tokens = int(usage_meta.get("promptTokenCount") or 0)
+        completion_tokens = int(usage_meta.get("candidatesTokenCount") or 0)
+        total_tokens = usage_meta.get("totalTokenCount")
+        if total_tokens is None:
+            total_tokens = prompt_tokens + completion_tokens
+
+        usage = {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": int(total_tokens) if total_tokens is not None else prompt_tokens + completion_tokens,
+        }
+
+        return {
+            "content": text_content,
+            "model": self.model_name,
+            "usage": usage,
+        }
 
 
 def create_llm_provider(
@@ -314,21 +499,23 @@ def create_llm_provider(
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
-    aws_profile_name: Optional[str] = None
+    aws_profile_name: Optional[str] = None,
+    request_interval: Optional[float] = None
 ) -> LLMProvider:
     """
     Factory function to create LLM provider.
 
     Args:
-        provider_type: Type of provider ('ollama' or 'bedrock')
+        provider_type: Type of provider ('ollama', 'bedrock', or 'gemini')
         model_name: Model name
-        api_key: API key (deprecated, not used)
+        api_key: API key (required for Gemini)
         base_url: Base URL (for Ollama)
         region_name: AWS region (for Bedrock)
         aws_access_key_id: AWS access key (for Bedrock)
         aws_secret_access_key: AWS secret key (for Bedrock)
         aws_session_token: AWS session token (for Bedrock)
         aws_profile_name: AWS profile name (for Bedrock)
+        request_interval: Minimum delay between requests (optional, useful for Gemini rate limiting)
 
     Returns:
         LLMProvider instance
@@ -351,7 +538,11 @@ def create_llm_provider(
         )
 
     elif provider_type == "gemini":
-        return GeminiProvider()
+        return GeminiProvider(
+            model_name=model_name,
+            api_key=api_key,
+            request_interval=request_interval or 0.0
+        )
 
     else:
         raise ValueError(f"Unknown provider type: {provider_type}. Use 'ollama' or 'bedrock'")

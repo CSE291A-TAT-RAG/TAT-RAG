@@ -61,6 +61,7 @@ docker-compose exec rag-app python main.py evaluate \
 Update `.env` to control the pipeline:
 
 - `LLM_PROVIDER`, `LLM_MODEL`, `OLLAMA_BASE_URL`: select the generator model. Increase `LLM_MAX_TOKENS` when using thinking-capable models.
+- `GEMINI_API_KEY`, `LLM_REQUEST_INTERVAL`: required when `LLM_PROVIDER=gemini`. Set a small interval (e.g., 6s) to avoid API throttling during evaluation.
 - `RAG_TOP_K`, `RAG_SCORE_THRESHOLD`: retrieval fan-out and similarity gating.
 - `HYBRID_SEARCH_ENABLED`: set to `true` to fuse vector search with BM25 keyword search via Qdrant's Fusion API (requires re-ingestion after toggling).
 - `EMBEDDING_MODEL`, `EMBEDDING_DEVICE`, `EMBEDDING_CACHE_DIR`: embedding backend configuration.
@@ -115,6 +116,7 @@ TAT-RAG/
    ```
 The resulting report summarises faithfulness, context precision/recall, answer relevancy, and correctness.
 
+
 ## Docker Services
 | Service   | Purpose                          | Ports        |
 |-----------|----------------------------------|--------------|
@@ -126,8 +128,8 @@ GPU passthrough is pre-configured in `docker-compose.yml`. Comment the `deploy.r
 ## Tech Stack
 - **Vector DB:** Qdrant (cosine similarity)
 - **Embeddings:** BAAI BGE-M3 (SentenceTransformers)
-- **LLMs:** Ollama (default) with optional Bedrock/Gemini/Vertex adapters
-- **Evaluation:** RAGAS
+- **LLMs:** Ollama (qwen3 8b) with optional Bedrock/Gemini
+- **Evaluation:** RAGAS(gemini-2.5-flash-lite)
 - **Frontend:** Streamlit
 
 ## Acknowledgements
