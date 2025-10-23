@@ -5,6 +5,14 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+def _get_bool_env(var_name: str, default: bool = False) -> bool:
+    """Read boolean flag from environment."""
+    value = os.getenv(var_name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
 @dataclass
 class QdrantConfig:
     """Qdrant vector database configuration."""
@@ -13,6 +21,7 @@ class QdrantConfig:
     collection_name: str = os.getenv("QDRANT_COLLECTION", "documents")
     vector_size: Optional[int] = None  # Will be set dynamically based on embedding model
     distance_metric: str = "Cosine"
+    timeout: int = int(os.getenv("QDRANT_TIMEOUT", "60"))
 
 
 @dataclass
@@ -68,6 +77,7 @@ class RAGConfig:
     score_threshold: float = float(os.getenv("RAG_SCORE_THRESHOLD", "0.5"))  # Minimum similarity score
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "200"))
+    hybrid_search: bool = _get_bool_env("HYBRID_SEARCH_ENABLED", False)
 
     qdrant: QdrantConfig = None
     llm: LLMConfig = None

@@ -88,12 +88,47 @@ class RAGPipeline:
 
         query_vector = self.embed_query(query)
 
-        search_result = self.qdrant_client.search(
-            collection_name=self.config.qdrant.collection_name,
-            query_vector=query_vector,
-            limit=top_k,
-            score_threshold=score_threshold  # Only return results above this score
-        )
+        search_kwargs: Dict[str, Any] = {
+            "collection_name": self.config.qdrant.collection_name,
+            "query_vector": query_vector,
+            "limit": top_k,
+        }
+        if score_threshold is not None:
+            search_kwargs["score_threshold"] = score_threshold
+
+        if self.config.hybrid_search and query.strip():
+            try:
+                from qdrant_client.models import (
+                    Filter,
+                    FieldCondition,
+                    MatchText,
+                    SearchParams,
+                )
+            except ImportError:
+                logger.warning(
+                    "Hybrid search requested but qdrant-client is missing hybrid models. "
+                    "Falling back to vector-only search."
+                )
+            else:
+                search_kwargs["query_filter"] = Filter(
+                    must=[
+                        FieldCondition(
+                            key="content",
+                            match=MatchText(text=query)
+                        )
+                    ]
+                )
+                search_kwargs["search_params"] = SearchParams(
+                    fusion="rrf"
+                )
+
+                logger.debug(
+                    "Executing hybrid search (fusion=rrf)"
+                )
+        elif self.config.hybrid_search:
+            logger.info("Hybrid search enabled but query is empty. Using vector search.")
+
+        search_result = self.qdrant_client.search(**search_kwargs)
 
         retrieved_docs = []
         for hit in search_result:

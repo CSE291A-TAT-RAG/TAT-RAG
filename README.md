@@ -55,6 +55,9 @@ docker-compose exec rag-app python main.py evaluate \
   --json-question-key query \
   --json-answer-key answer \
   --output /app/output/report.txt
+
+# Evaluate with request.json
+  docker-compose exec rag-app python main.py evaluate   --json-path /app/requests/requests.json   --json-question-key query   --json-answer-key answer   --output /app/output/report.txt
 ```
 
 ## Configuration
@@ -107,6 +110,9 @@ TAT-RAG/
      --ground-truth-field answer \
      --include-docs \
      --output /app/output/cached_answers.json
+
+   docker-compose exec rag-app python scripts/precompute_answers.py   --input /app/requests/requests.json   --question-field query   --ground-truth-field answer   --include-docs   --output /app/output/request_cache.json
+
    ```
 2. **Score the cached answers**:
    ```bash

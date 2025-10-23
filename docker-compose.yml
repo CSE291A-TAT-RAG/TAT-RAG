@@ -36,6 +36,7 @@ services:
       - ./src:/app/src                    # Mount source code for development
       - ./tests:/app/tests                # Mount tests directory
       - ./golden_set:/app/golden_set      # Mount golden set evaluations
+      - ./requests:/app/requests        # Mount requests directory
       - ./main.py:/app/main.py            # Mount main script
       - ./app.py:/app/app.py              # Mount Streamlit app
       - ./scripts:/app/scripts            # Mount scripts directory

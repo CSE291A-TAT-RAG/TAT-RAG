@@ -395,6 +395,30 @@ class GeminiProvider(LLMProvider):
             return None
         return " ".join(fragments).strip()
 
+    @staticmethod
+    def _expects_structured_output(messages: List[Dict[str, str]]) -> bool:
+        """
+        Heuristic to detect prompts that explicitly require machine-readable JSON.
+        """
+        structured_keywords = [
+            "json schema",
+            "json format",
+            "output json",
+            "return json",
+            "strict json",
+            "please return the output in a json",
+            "comply with the following schema",
+            "application/json",
+        ]
+
+        for msg in messages:
+            if msg.get("role") != "user":
+                continue
+            content = (msg.get("content") or "").lower()
+            if any(keyword in content for keyword in structured_keywords):
+                return True
+        return False
+
     def generate(
         self,
         messages: List[Dict[str, str]],
@@ -403,6 +427,7 @@ class GeminiProvider(LLMProvider):
     ) -> Dict[str, Any]:
         self._respect_rate_limit()
         system_instruction, contents = self._convert_messages(messages)
+        expects_structured = self._expects_structured_output(messages)
 
         if not contents:
             raise ValueError("Gemini provider received no user/assistant messages to process.")
@@ -412,6 +437,8 @@ class GeminiProvider(LLMProvider):
         }
         if max_tokens:
             generation_config["maxOutputTokens"] = max_tokens
+        if expects_structured:
+            generation_config["responseMimeType"] = "application/json"
 
         payload: Dict[str, Any] = {
             "contents": contents,
@@ -466,9 +493,10 @@ class GeminiProvider(LLMProvider):
         text_content = text_content.strip()
 
         if text_content.startswith("{") or text_content.startswith("["):
-            normalized = self._normalize_json_text(text_content)
-            if normalized:
-                text_content = normalized
+            if not expects_structured:
+                normalized = self._normalize_json_text(text_content)
+                if normalized:
+                    text_content = normalized
 
         usage_meta = data.get("usageMetadata") or {}
         prompt_tokens = int(usage_meta.get("promptTokenCount") or 0)
