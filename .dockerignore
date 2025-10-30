@@ -48,11 +48,6 @@ docker-compose.yml
 .env
 .env.local
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
 # Output
 output/
 *.log

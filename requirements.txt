@@ -8,7 +8,6 @@ langchain-aws==1.0.0
 # Google Gemini support - using only LangChain wrapper for compatibility
 # Note: langchain-google-genai includes google-generativeai as a dependency
 langchain-google-genai>=2.0.0,<4.0.0
-langchain-google-vertexai>=1.0.0
 requests>=2.31.0
 
 # AWS Bedrock
@@ -32,7 +31,3 @@ tqdm>=4.66.0
 
 # Web interface
 streamlit>=1.30.0
-
-# Testing
-pytest>=7.4.0
-pytest-mock>=3.12.0
