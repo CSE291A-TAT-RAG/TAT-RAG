@@ -122,7 +122,7 @@ class RAGEvaluator:
         questions: List[str],
         ground_truths: Optional[List[str]] = None,
         answers: Optional[List[str]] = None,
-        contexts: Optional[List[List[str]]] = None
+        contexts: Optional[List[List[str]]] = None,
     ) -> Dataset:
         """
         Prepare evaluation dataset in RAGAS format.
@@ -165,7 +165,7 @@ class RAGEvaluator:
         ground_truths: Optional[List[str]] = None,
         answers: Optional[List[str]] = None,
         contexts: Optional[List[List[str]]] = None,
-        metrics: Optional[List] = None
+        metrics: Optional[List] = None,
     ) -> Dict[str, Any]:
         """
         Evaluate RAG pipeline using RAGAS metrics.
@@ -181,7 +181,12 @@ class RAGEvaluator:
             Dictionary with evaluation results
         """
         # Prepare dataset
-        dataset = self.prepare_eval_dataset(questions, ground_truths, answers, contexts)
+        dataset = self.prepare_eval_dataset(
+            questions,
+            ground_truths,
+            answers,
+            contexts,
+        )
 
         # Select metrics based on available data
         if metrics is None:
@@ -253,12 +258,15 @@ class RAGEvaluator:
         ground_truths: Optional[List[str]] = None,
         top_k: Optional[int] = None,
         output_path: Optional[str] = None,
-        include_retrieved_docs: bool = False
+        include_retrieved_docs: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Generate answers/contexts ahead of time so RAGAS only scores cached data.
         """
-        results = self.rag_pipeline.batch_query(questions, top_k=top_k)
+        results = self.rag_pipeline.batch_query(
+            questions,
+            top_k=top_k,
+        )
         cached_results: List[Dict[str, Any]] = []
 
         for idx, result in enumerate(results):
@@ -408,13 +416,17 @@ class RAGEvaluator:
             # Replace missing ones with empty string to keep length alignment
             ground_truths = [gt if gt is not None else "" for gt in ground_truths]
 
-        return self.evaluate(questions, ground_truths=ground_truths, metrics=metrics)
+        return self.evaluate(
+            questions,
+            ground_truths=ground_truths,
+            metrics=metrics,
+        )
 
     def compare_configurations(
         self,
         questions: List[str],
         ground_truths: List[str],
-        top_k_values: List[int] = [3, 5, 10]
+        top_k_values: List[int] = [3, 5, 10],
     ) -> pd.DataFrame:
         """
         Compare RAG performance with different configurations.
@@ -434,8 +446,11 @@ class RAGEvaluator:
 
             # Generate answers with specific top_k
             rag_results = []
-            for question in questions:
-                result = self.rag_pipeline.query(question, top_k=top_k)
+            for idx, question in enumerate(questions):
+                result = self.rag_pipeline.query(
+                    question,
+                    top_k=top_k,
+                )
                 rag_results.append(result)
 
             answers = [r["answer"] for r in rag_results]

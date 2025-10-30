@@ -1,14 +1,17 @@
 """Retrieval and generation module for RAG pipeline."""
 
 import logging
-import re
+from collections import defaultdict
 from typing import List, Dict, Any, Optional
 
 from qdrant_client import QdrantClient
 
 from .config import RAGConfig
 from .llm_providers import create_llm_provider
+from qdrant_client import models as qdrant_models
+
 from .embedding_providers import create_embedding_provider
+from .rerankers import create_reranker
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +32,12 @@ class RAGPipeline:
             host=config.qdrant.host,
             port=config.qdrant.port
         )
+        configured_name = getattr(config.qdrant, "dense_vector_name", None)
+        if isinstance(configured_name, str):
+            configured_name = configured_name.strip() or None
+        self._configured_dense_vector_name: Optional[str] = configured_name
+        self._dense_prefetch_using: Optional[str] = None
+        self._checked_dense_vector_support: bool = False
 
         # Initialize LLM provider
         self.llm_provider = create_llm_provider(
@@ -51,11 +60,14 @@ class RAGPipeline:
             device=config.embedding.device,
             cache_dir=config.embedding.cache_dir
         )
+        self.reranker = create_reranker(config.rerank)
 
         # Set vector size dynamically if not set
         if config.qdrant.vector_size is None:
             config.qdrant.vector_size = self.embedding_provider.get_dimension()
             logger.info(f"Set vector size to {config.qdrant.vector_size} based on embedding model")
+
+        self._ensure_dense_prefetch_vector()
 
     def embed_query(self, query: str) -> List[float]:
         """
@@ -69,9 +81,14 @@ class RAGPipeline:
         """
         return self.embedding_provider.embed_query(query)
 
-    def retrieve(self, query: str, top_k: Optional[int] = None, score_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
+    def retrieve(
+        self,
+        query: str,
+        top_k: Optional[int] = None,
+        score_threshold: Optional[float] = None,
+    ) -> List[Dict[str, Any]]:
         """
-        Retrieve relevant documents from Qdrant with score filtering.
+        Retrieve relevant documents using hybrid search with optional auto-filtering.
 
         Args:
             query: Query string
@@ -79,7 +96,7 @@ class RAGPipeline:
             score_threshold: Minimum similarity score (default from config)
 
         Returns:
-            List of retrieved documents with content, metadata, and score (filtered by threshold)
+            List of retrieved documents with content, metadata, and score
         """
         if top_k is None:
             top_k = self.config.top_k
@@ -87,54 +104,154 @@ class RAGPipeline:
             score_threshold = self.config.score_threshold
 
         query_vector = self.embed_query(query)
-
-        search_kwargs: Dict[str, Any] = {
-            "collection_name": self.config.qdrant.collection_name,
-            "query_vector": query_vector,
-            "limit": top_k,
-        }
-        if score_threshold is not None:
-            search_kwargs["score_threshold"] = score_threshold
+        self._ensure_dense_prefetch_vector()
+        dense_query_vector = self._make_query_vector(query_vector)
 
         if self.config.hybrid_search and query.strip():
+            logger.info("Performing Hybrid (Dense + BM25) search.")
             try:
-                from qdrant_client.models import (
-                    Filter,
-                    FieldCondition,
-                    MatchText,
-                    SearchParams,
-                )
-            except ImportError:
-                logger.warning(
-                    "Hybrid search requested but qdrant-client is missing hybrid models. "
-                    "Falling back to vector-only search."
-                )
-            else:
-                search_kwargs["query_filter"] = Filter(
-                    must=[
-                        FieldCondition(
-                            key="content",
-                            match=MatchText(text=query)
+                hybrid_prefetch = max(top_k, getattr(self.config, "hybrid_prefetch", top_k))
+                self._ensure_dense_prefetch_vector()
+
+                query_response = None
+                for attempt in range(2):
+                    dense_prefetch_kwargs = dict(
+                        query=query_vector,
+                        limit=hybrid_prefetch,
+                        score_threshold=score_threshold,
+                    )
+                    if self._dense_prefetch_using:
+                        dense_prefetch_kwargs["using"] = self._dense_prefetch_using
+
+                    dense_prefetch = qdrant_models.Prefetch(**dense_prefetch_kwargs)
+
+                    text_filter = qdrant_models.Filter(
+                        must=[
+                            qdrant_models.FieldCondition(
+                                key="content",
+                                match=qdrant_models.MatchText(text=query),
+                            )
+                        ]
+                    )
+                    text_prefetch = qdrant_models.Prefetch(
+                        filter=text_filter,
+                        limit=hybrid_prefetch,
+                    )
+
+                    fusion_query = qdrant_models.FusionQuery(fusion=qdrant_models.Fusion.RRF)
+
+                    try:
+                        query_response = self.qdrant_client.query_points(
+                            collection_name=self.config.qdrant.collection_name,
+                            prefetch=[dense_prefetch, text_prefetch],
+                            query=fusion_query,
+                            limit=top_k,
+                            with_payload=True,
+                            with_vectors=False,
                         )
-                    ]
-                )
-                search_kwargs["search_params"] = SearchParams(
-                    fusion="rrf"
-                )
+                        break
+                    except Exception as hybrid_exc:
+                        error_text = str(hybrid_exc)
+                        if (
+                            self._dense_prefetch_using
+                            and "Vector with name" in error_text
+                        ):
+                            logger.info(
+                                "Dense vector name '%s' is not configured in Qdrant; retrying without named vector.",
+                                self._dense_prefetch_using,
+                            )
+                            self._dense_prefetch_using = None
+                            self._checked_dense_vector_support = True
+                            continue
+                        raise hybrid_exc
 
-                logger.debug(
-                    "Executing hybrid search (fusion=rrf)"
+                if query_response is None:
+                    raise RuntimeError("Hybrid query failed without response.")
+
+                search_result = getattr(query_response, "points", query_response)
+            except Exception as exc:
+                logger.warning(
+                    "Hybrid query_points failed (%s); falling back to dense-only search.", exc
                 )
-        elif self.config.hybrid_search:
-            logger.info("Hybrid search enabled but query is empty. Using vector search.")
+                search_result = self.qdrant_client.search(
+                    collection_name=self.config.qdrant.collection_name,
+                    query_vector=dense_query_vector,
+                    limit=top_k,
+                    score_threshold=score_threshold,
+                    with_payload=True,
+                )
+        else:
+            logger.info("Performing Dense-only vector search.")
+            search_result = self.qdrant_client.search(
+                collection_name=self.config.qdrant.collection_name,
+                query_vector=dense_query_vector,
+                limit=top_k,
+                score_threshold=score_threshold,
+                with_payload=True,
+            )
 
-        search_result = self.qdrant_client.search(**search_kwargs)
+        formatted_docs = self._format_retrieved_docs(search_result, query, score_threshold)
+        formatted_docs = self._maybe_rerank(query, formatted_docs)
+        return formatted_docs
 
-        retrieved_docs = []
+    def _ensure_dense_prefetch_vector(self) -> None:
+        """
+        Ensure we only ask for a named dense vector if the collection actually exposes it.
+        """
+        if self._checked_dense_vector_support:
+            return
+
+        dense_name = self._configured_dense_vector_name
+        if not dense_name:
+            self._checked_dense_vector_support = True
+            return
+
+        try:
+            collection_info = self.qdrant_client.get_collection(
+                collection_name=self.config.qdrant.collection_name
+            )
+        except Exception as exc:
+            logger.debug(
+                "Could not inspect collection vector schema (%s); assuming unnamed vector.",
+                exc,
+            )
+            return
+
+        vectors_config = getattr(collection_info.config.params, "vectors", None)
+        if isinstance(vectors_config, dict):
+            if dense_name in vectors_config:
+                self._dense_prefetch_using = dense_name
+            else:
+                logger.info(
+                    "Configured dense vector name '%s' not found in collection schema; using default vector.",
+                    dense_name,
+                )
+                self._dense_prefetch_using = None
+        else:
+            self._dense_prefetch_using = None
+        self._checked_dense_vector_support = True
+
+    def _make_query_vector(self, query_vector: List[float]):
+        """
+        Prepare query vector for Qdrant, using named vector when available.
+        """
+        if self._dense_prefetch_using:
+            return qdrant_models.NamedVector(
+                name=self._dense_prefetch_using,
+                vector=query_vector,
+            )
+        return query_vector
+
+    def _format_retrieved_docs(self, search_result, query: str, score_threshold: Optional[float]) -> List[Dict[str, Any]]:
+        """
+        Normalize Qdrant search results into payload dictionaries.
+        """
+        retrieved_docs: List[Dict[str, Any]] = []
         for hit in search_result:
+            payload = hit.payload or {}
             retrieved_docs.append({
-                "content": hit.payload["content"],
-                "metadata": hit.payload["metadata"],
+                "content": payload.get("content", ""),
+                "metadata": payload.get("metadata", {}),
                 "score": hit.score,
                 "id": hit.id
             })
@@ -144,6 +261,77 @@ class RAGPipeline:
             f"(threshold: {score_threshold:.2f})"
         )
         return retrieved_docs
+
+    def _maybe_rerank(self, query: str, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Optionally rerank retrieved documents with an external reranker.
+        """
+        if not documents or not self.reranker:
+            return documents
+
+        try:
+            reranked = self.reranker.rerank(query, documents)
+        except Exception as exc:
+            logger.warning("Reranking failed for query '%s': %s", query[:50], exc, exc_info=True)
+            return documents
+
+        return reranked or documents
+
+    def _apply_adaptive_filters(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Dynamically trim low-relevance chunks and optionally cap per-document fan-out.
+        """
+        if not documents or not getattr(self.config, "adaptive_filter_enabled", False):
+            return documents
+
+        min_keep = max(0, getattr(self.config, "adaptive_min_keep", 0))
+        score_ratio = getattr(self.config, "adaptive_score_ratio", 0.0)
+        score_drop = getattr(self.config, "adaptive_score_drop", 0.0)
+        max_chunks_per_doc = getattr(self.config, "max_chunks_per_doc", None)
+
+        top_score = documents[0].get("score") or 0.0
+        per_doc_counts: Dict[str, int] = defaultdict(int)
+        filtered: List[Dict[str, Any]] = []
+
+        for doc in documents:
+            score = doc.get("score") or 0.0
+            metadata = doc.get("metadata") or {}
+            doc_key = metadata.get("source") or metadata.get("doc_id") or ""
+            if max_chunks_per_doc and doc_key:
+                if per_doc_counts[doc_key] >= max_chunks_per_doc:
+                    continue
+
+            keep = True
+            if len(filtered) >= min_keep:
+                keep_by_ratio = True
+                keep_by_drop = True
+
+                if score_ratio > 0 and top_score > 0:
+                    keep_by_ratio = (score / top_score) >= score_ratio
+                if score_drop > 0 and top_score >= score:
+                    keep_by_drop = (top_score - score) <= score_drop
+
+                keep = keep_by_ratio or keep_by_drop
+
+            if not keep:
+                break
+
+            filtered.append(doc)
+            if doc_key:
+                per_doc_counts[doc_key] += 1
+
+        if not filtered:
+            return documents[:max(min_keep, 1)]
+        return filtered
+
+    def _select_docs_for_generation(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Slice the reranked documents according to the final context limit.
+        """
+        limit = getattr(self.config, "final_context_limit", None)
+        if isinstance(limit, int) and limit > 0:
+            return documents[:limit]
+        return documents
 
     def generate_prompt(self, query: str, contexts: List[str]) -> str:
         """
@@ -228,18 +416,6 @@ Answer: Provide a detailed and accurate answer based on the contexts above. If t
                 query[:50],
             )
 
-        if not answer:
-            fallback_answer = self._fallback_answer(query, contexts)
-            if fallback_answer:
-                logger.info(
-                    "Generated fallback answer for query: %s",
-                    query[:50],
-                )
-                answer = fallback_answer
-                usage.setdefault("prompt_tokens", 0)
-                usage.setdefault("completion_tokens", 0)
-                usage.setdefault("total_tokens", 0)
-
         logger.info(f"Generated answer for query: {query[:50]}...")
 
         return {
@@ -250,163 +426,12 @@ Answer: Provide a detailed and accurate answer based on the contexts above. If t
             "usage": usage,
         }
 
-    @staticmethod
-    def _parse_numeric_token(token: str) -> Optional[float]:
-        cleaned = token.replace("$", "").replace(",", "").strip()
-        cleaned = cleaned.replace("�", "").replace("—", "").replace("–", "")
-
-        if not cleaned:
-            return None
-
-        negative = False
-        if cleaned.startswith("(") and cleaned.endswith(")"):
-            negative = True
-            cleaned = cleaned[1:-1].strip()
-
-        if not re.match(r"^-?\d+(\.\d+)?$", cleaned):
-            return None
-
-        value = float(cleaned)
-        if negative:
-            value = -value
-        return value
-
-    def _extract_table_values(self, contexts: List[str]) -> Dict[str, List[float]]:
-        table_data: Dict[str, List[float]] = {}
-
-        for context in contexts:
-            for line in context.splitlines():
-                if "|" not in line:
-                    continue
-
-                columns = [col.strip() for col in line.split("|")]
-                label: Optional[str] = None
-                numbers: List[float] = []
-
-                for col in columns:
-                    if not col:
-                        continue
-
-                    numeric_value = self._parse_numeric_token(col)
-                    if numeric_value is not None:
-                        numbers.append(numeric_value)
-                        continue
-
-                    if label is None and any(ch.isalpha() for ch in col):
-                        label = col.lower()
-
-                if label and numbers and label not in table_data:
-                    table_data[label] = numbers
-
-        return table_data
-
-    @staticmethod
-    def _format_currency(value: float) -> str:
-        return f"${value:,.0f}"
-
-    def _extract_numbers_after_label(
+    def query(
         self,
-        contexts: List[str],
-        label: str,
-        expected_count: int = 2,
-    ) -> List[float]:
-        """
-        Extract numeric values that immediately follow a textual label in the contexts.
-        """
-        label_lower = label.lower()
-
-        for context in contexts:
-            lines = context.splitlines()
-            for idx, line in enumerate(lines):
-                if label_lower in line.lower():
-                    numbers: List[float] = []
-                    for subsequent in lines[idx + 1 :]:
-                        value = self._parse_numeric_token(subsequent.strip())
-                        if value is not None:
-                            numbers.append(value)
-                            if len(numbers) >= expected_count:
-                                return numbers
-                    if numbers:
-                        return numbers
-
-        return []
-
-    def _fallback_answer(self, query: str, contexts: List[str]) -> str:
-        """
-        Provide deterministic answers for well-known numeric queries when the LLM fails.
-        """
-        lower_query = query.lower()
-        table_data = self._extract_table_values(contexts)
-
-        def find_values(*keywords: str) -> Optional[List[float]]:
-            for label, values in table_data.items():
-                if all(keyword in label for keyword in keywords):
-                    return values
-            return None
-
-        def format_yearly_values(values: List[float], descriptor: str) -> str:
-            if len(values) < 2:
-                return ""
-            return (
-                f"{descriptor} were {self._format_currency(values[0])} in 2019 "
-                f"and {self._format_currency(values[1])} in 2018."
-            )
-
-        values = find_values("other", "non-current", "assets")
-        if values:
-            if "between" in lower_query or "2018 to 2019" in lower_query or "2018 and 2019" in lower_query:
-                return format_yearly_values(values, "A10 Networks' other non-current assets")
-            if "2019" in lower_query:
-                return (
-                    f"A10 Networks' other non-current assets were "
-                    f"{self._format_currency(values[0])} as of December 31, 2019."
-                )
-            if "2018" in lower_query:
-                return (
-                    f"A10 Networks' other non-current assets were "
-                    f"{self._format_currency(values[1])} as of December 31, 2018."
-                )
-
-        if "total non-current liabilities" in lower_query:
-            liability_values = find_values("non-current", "liabilities")
-            if liability_values:
-                return format_yearly_values(liability_values, "A10 Networks' non-current liabilities")
-
-        if "total deferred revenue" in lower_query and "percentage" in lower_query:
-            current_values = find_values("deferred revenue", "current")
-            non_current_values = find_values("deferred revenue", "non-current")
-            total_values: List[float] = []
-
-            if current_values and non_current_values and len(current_values) >= 2 and len(non_current_values) >= 2:
-                total_values = [
-                    current_values[0] + non_current_values[0],
-                    current_values[1] + non_current_values[1],
-                ]
-
-            if len(total_values) < 2:
-                total_values = self._extract_numbers_after_label(contexts, "Total deferred revenue", expected_count=2)
-
-            if len(total_values) >= 2:
-                total_2019, total_2018 = total_values[0], total_values[1]
-                if total_2018 != 0:
-                    change = (total_2019 - total_2018) / total_2018 * 100
-                    return (
-                        f"A10 Networks' total deferred revenue increased from "
-                        f"{self._format_currency(total_2018)} in 2018 to {self._format_currency(total_2019)} in 2019, "
-                        f"a {change:.2f}% increase."
-                    )
-
-        if "total value of other non-current assets" in lower_query:
-            values = find_values("other", "non-current", "assets")
-            if values and len(values) >= 2:
-                return (
-                    f"The value of other non-current assets was {self._format_currency(values[0])} in 2019 "
-                    f"and {self._format_currency(values[1])} in 2018."
-                )
-
-        return ""
-
-    def query(self, query: str, top_k: Optional[int] = None, score_threshold: Optional[float] = None) -> Dict[str, Any]:
+        query: str,
+        top_k: Optional[int] = None,
+        score_threshold: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """
         Complete RAG pipeline: retrieve and generate.
 
@@ -422,17 +447,23 @@ Answer: Provide a detailed and accurate answer based on the contexts above. If t
 
         # Retrieve relevant documents with score filtering
         retrieved_docs = self.retrieve(query, top_k, score_threshold)
-        contexts = [doc["content"] for doc in retrieved_docs]
+        limited_docs = self._select_docs_for_generation(retrieved_docs)
+        contexts = [doc.get("content", "") for doc in limited_docs]
 
         # Generate answer
         result = self.generate(query, contexts)
 
         # Add retrieved documents info
         result["retrieved_docs"] = retrieved_docs
+        result["used_retrieved_docs"] = limited_docs
 
         return result
 
-    def batch_query(self, queries: List[str], top_k: Optional[int] = None) -> List[Dict[str, Any]]:
+    def batch_query(
+        self,
+        queries: List[str],
+        top_k: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Process multiple queries in batch.
 

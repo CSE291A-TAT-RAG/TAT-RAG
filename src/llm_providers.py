@@ -4,6 +4,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Tuple
+import copy
 import json
 import requests
 
@@ -396,6 +397,42 @@ class GeminiProvider(LLMProvider):
         return " ".join(fragments).strip()
 
     @staticmethod
+    def _extract_structured_json(text: str) -> Optional[str]:
+        """
+        Try to recover a valid JSON document from the model output.
+        """
+        if not text:
+            return None
+
+        candidate = text.strip()
+        if not candidate:
+            return None
+
+        def _serialize(obj: Any) -> str:
+            return json.dumps(obj, ensure_ascii=False)
+
+        try:
+            parsed = json.loads(candidate)
+            return _serialize(parsed)
+        except json.JSONDecodeError:
+            pass
+
+        bracket_pairs = [("{", "}"), ("[", "]")]
+        for start, end in bracket_pairs:
+            start_idx = candidate.find(start)
+            end_idx = candidate.rfind(end)
+            if start_idx == -1 or end_idx == -1 or end_idx <= start_idx:
+                continue
+            snippet = candidate[start_idx:end_idx + 1]
+            try:
+                parsed = json.loads(snippet)
+            except json.JSONDecodeError:
+                continue
+            return _serialize(parsed)
+
+        return None
+
+    @staticmethod
     def _expects_structured_output(messages: List[Dict[str, str]]) -> bool:
         """
         Heuristic to detect prompts that explicitly require machine-readable JSON.
@@ -425,78 +462,133 @@ class GeminiProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int = 1000
     ) -> Dict[str, Any]:
-        self._respect_rate_limit()
-        system_instruction, contents = self._convert_messages(messages)
+        system_instruction, base_contents = self._convert_messages(messages)
+        base_contents = copy.deepcopy(base_contents)
         expects_structured = self._expects_structured_output(messages)
+        logger.debug(
+            "Gemini prompt overview: %s",
+            [(msg.get("role"), (msg.get("content") or "")[:400]) for msg in messages],
+        )
+        if not expects_structured:
+            first_user = next((msg.get("content", "") for msg in messages if msg.get("role") == "user"), "")
+            logger.debug("Gemini debug prompt snippet: %s", first_user[:600])
 
-        if not contents:
+        if not base_contents:
             raise ValueError("Gemini provider received no user/assistant messages to process.")
 
-        generation_config: Dict[str, Any] = {
+        base_generation_config: Dict[str, Any] = {
             "temperature": temperature,
         }
         if max_tokens:
-            generation_config["maxOutputTokens"] = max_tokens
+            base_generation_config["maxOutputTokens"] = max_tokens
         if expects_structured:
-            generation_config["responseMimeType"] = "application/json"
+            base_generation_config["responseMimeType"] = "application/json"
 
-        payload: Dict[str, Any] = {
-            "contents": contents,
-            "generationConfig": generation_config,
-        }
+        system_parts = [{"text": system_instruction}] if system_instruction else []
+        extra_system_instruction: Optional[str] = None
+        extra_user_prompt: Optional[str] = None
+        last_text_response: str = ""
+        data: Dict[str, Any] = {}
+        final_text: str = ""
+        max_attempts = 3
 
-        if system_instruction:
-            payload["systemInstruction"] = {
-                "parts": [{"text": system_instruction}],
+        for attempt in range(1, max_attempts + 1):
+            self._respect_rate_limit()
+
+            payload: Dict[str, Any] = {
+                "contents": copy.deepcopy(base_contents),
+                "generationConfig": copy.deepcopy(base_generation_config),
             }
 
-        try:
-            response = self.session.post(
-                self.api_url,
-                params={"key": self.api_key},
-                json=payload,
-                timeout=60,
-            )
-            self._last_request_ts = time.monotonic()
-        except requests.RequestException as exc:
-            logger.error(f"Gemini request failed: {exc}")
-            raise RuntimeError(f"Failed to generate with Gemini. Error: {exc}") from exc
+            if extra_user_prompt:
+                payload["contents"].append({
+                    "role": "user",
+                    "parts": [{"text": extra_user_prompt}],
+                })
 
-        if not response.ok:
+            system_parts_combined = list(system_parts)
+            if extra_system_instruction:
+                system_parts_combined.append({"text": extra_system_instruction})
+            if system_parts_combined:
+                payload["systemInstruction"] = {
+                    "parts": system_parts_combined,
+                }
+
+            try:
+                response = self.session.post(
+                    self.api_url,
+                    params={"key": self.api_key},
+                    json=payload,
+                    timeout=60,
+                )
+                self._last_request_ts = time.monotonic()
+            except requests.RequestException as exc:
+                logger.error(f"Gemini request failed: {exc}")
+                raise RuntimeError(f"Failed to generate with Gemini. Error: {exc}") from exc
+
+            if not response.ok:
+                logger.error(
+                    "Gemini API returned error %s: %s",
+                    response.status_code,
+                    response.text,
+                )
+                raise RuntimeError(
+                    f"Gemini API request failed with status {response.status_code}: {response.text}"
+                )
+
+            data = response.json()
+            prompt_feedback = data.get("promptFeedback") or {}
+            block_reason = prompt_feedback.get("blockReason")
+            if block_reason and block_reason != "BLOCK_REASON_UNSPECIFIED":
+                logger.error(f"Gemini blocked the prompt: {block_reason}")
+                raise RuntimeError(f"Gemini blocked the prompt. Reason: {block_reason}")
+
+            candidates = data.get("candidates") or []
+            text_content = ""
+            for candidate in candidates:
+                content = candidate.get("content", {})
+                parts = content.get("parts", [])
+                for part in parts:
+                    part_text = part.get("text")
+                    if part_text:
+                        text_content += part_text
+                if text_content:
+                    break
+            text_content = text_content.strip()
+            last_text_response = text_content
+
+            if expects_structured:
+                extracted_json = self._extract_structured_json(text_content)
+                if not extracted_json:
+                    logger.warning(
+                        "Gemini produced non-JSON output on attempt %s/%s. Retrying with stricter instructions.",
+                        attempt,
+                        max_attempts,
+                    )
+                    extra_system_instruction = (
+                        "You MUST respond with strict JSON that adheres exactly to the schema provided. "
+                        "Return only the JSON payload with no additional commentary."
+                    )
+                    extra_user_prompt = (
+                        "The previous response was invalid. Reply again using ONLY the JSON that matches the schema."
+                    )
+                    continue
+                text_content = extracted_json
+            else:
+                if text_content.startswith("{") or text_content.startswith("["):
+                    normalized = self._normalize_json_text(text_content)
+                    if normalized:
+                        text_content = normalized
+
+            final_text = text_content
+            break
+        else:
             logger.error(
-                "Gemini API returned error %s: %s",
-                response.status_code,
-                response.text,
+                "Gemini failed to produce valid JSON after %s attempts. Last response: %s",
+                max_attempts,
+                last_text_response,
             )
-            raise RuntimeError(
-                f"Gemini API request failed with status {response.status_code}: {response.text}"
-            )
-
-        data = response.json()
-        prompt_feedback = data.get("promptFeedback") or {}
-        block_reason = prompt_feedback.get("blockReason")
-        if block_reason and block_reason != "BLOCK_REASON_UNSPECIFIED":
-            logger.error(f"Gemini blocked the prompt: {block_reason}")
-            raise RuntimeError(f"Gemini blocked the prompt. Reason: {block_reason}")
-
-        candidates = data.get("candidates") or []
-        text_content = ""
-        for candidate in candidates:
-            content = candidate.get("content", {})
-            parts = content.get("parts", [])
-            for part in parts:
-                part_text = part.get("text")
-                if part_text:
-                    text_content += part_text
-            if text_content:
-                break
-        text_content = text_content.strip()
-
-        if text_content.startswith("{") or text_content.startswith("["):
-            if not expects_structured:
-                normalized = self._normalize_json_text(text_content)
-                if normalized:
-                    text_content = normalized
+            raise RuntimeError("Gemini failed to produce a valid JSON response for a structured prompt.")
 
         usage_meta = data.get("usageMetadata") or {}
         prompt_tokens = int(usage_meta.get("promptTokenCount") or 0)
@@ -512,7 +604,7 @@ class GeminiProvider(LLMProvider):
         }
 
         return {
-            "content": text_content,
+            "content": final_text,
             "model": self.model_name,
             "usage": usage,
         }
