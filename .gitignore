@@ -18,3 +18,5 @@ __pycache__/
 phase1\chunks.jsonl
 **/csvs/
 **/log.txt
+
+test_*
