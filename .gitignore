@@ -54,6 +54,10 @@ logs/
 
 # Output
 results/
+output/
+
+# Secrets/keys
+*.pem
 
 # Data
 
@@ -80,3 +84,4 @@ models/
 
 # Tooling
 .claude/
+.pem

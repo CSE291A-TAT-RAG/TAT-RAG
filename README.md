@@ -43,20 +43,14 @@ docker-compose exec rag-app streamlit run app.py --server.port 8501 --server.add
 # visit http://localhost:8501
 ```
 
-## CLI Reference
+## Eval
 ```bash
-# Retrieve only (no generation)
-docker-compose exec rag-app python main.py retrieve "Explain the revenue trend."
-
-# Query with retrieval + generation
-docker-compose exec rag-app python main.py query --top-k 3 "Summarise Item 7 risk factors."
-
 # Evaluate with a golden set
-docker-compose exec rag-app python main.py evaluate \
-  --json-path /app/golden_set/golden_set.json \
-  --json-question-key query \
-  --json-answer-key answer \
-  --output /app/output/report.txt
+# docker-compose exec rag-app python main.py evaluate \
+#   --json-path /app/golden_set/golden_set.json \
+#   --json-question-key query \
+#   --json-answer-key answer \
+#   --output /app/output/report.txt
 
 # Evaluate retriever
 docker-compose exec rag-app python scripts/evaluate_retrieval.py \
@@ -125,28 +119,7 @@ TAT-RAG/
 Together, these features make ingestion faster than stock SentenceTransformers and yield cleaner, more retrievable vectors—as long as `.env` keeps `USE_FP16`, `DENSE_BATCH_SIZE`, `SORT_BY_LENGTH`, and hybrid options enabled where applicable.
 
 ## Evaluating with RAGAS
-1. **Pre-compute responses** to avoid repeated LLM calls (run inside the container via `docker-compose exec`):
-   ```bash
-   docker-compose exec rag-app python scripts/precompute_answers.py \
-     --input /app/golden_set/golden_set.json \
-     --question-field query \
-     --ground-truth-field answer \
-     --include-docs \
-     --output /app/output/cached_answers.json
 
-   docker-compose exec rag-app python scripts/precompute_answers.py \
-     --input /app/requests/requests.json \
-     --question-field query \
-     --ground-truth-field answer \
-     --include-docs \
-     --output /app/output/request_cache.json
-   ```
-2. **Score the cached answers**:
-   ```bash
-   docker-compose exec rag-app python main.py evaluate \
-     --cache-path /app/output/cached_answers.json \
-     --output /app/output/ragas_report.txt
-   ```
 The resulting report summarises faithfulness, context precision/recall, answer relevancy, and correctness.
 
 ## Docker Services

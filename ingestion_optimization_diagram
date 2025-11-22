@@ -1,0 +1,54 @@
+// Ingestion Pipeline Workflow
+digraph {
+	nodesep=0.5 rankdir=LR ranksep=0.6 splines=ortho
+	node [fillcolor=white fontname=Arial fontsize=10 shape=box style=filled]
+	edge [color="#333333" fontname=Arial fontsize=9]
+	graph [bgcolor="#FAFAFA" fontname=Arial fontsize=12 style=rounded]
+	Zip [label="Zip Archive
+(Source)" color="#D6B656" fillcolor="#FFF2CC" shape=note]
+	subgraph cluster_stage1 {
+		color="#6C8EBF" fontcolor="#444444" label="Stage 1: GPU Worker (Producer)"
+		style=dashed
+		S1_Start [label="Fetch Batch" fillcolor="#DAE8FC" shape=oval style=filled]
+		S1_Process [label="Sort & Embed
+(RTX 4090)" fillcolor="#DAE8FC" shape=box]
+		S1_Push [label="Push to Q1" fillcolor="#DAE8FC" shape=box]
+		S1_Start -> S1_Process
+		S1_Process -> S1_Push
+		S1_Push -> S1_Start [label=Next color="#6C8EBF" constraint=false]
+	}
+	Q1 [label="Queue 1" fillcolor="#F5F5F5" fixedsize=true shape=cylinder width=0.6]
+	subgraph cluster_stage2 {
+		color="#B85450" fontcolor="#444444" label="Stage 2: CPU Worker (Transformer)"
+		style=dashed
+		S2_Get [label="Get Item" fillcolor="#F8CECC" shape=oval]
+		S2_Build [label="Build Point
+(Metadata)" fillcolor="#F8CECC" shape=box]
+		S2_Push [label="Push to Q2" fillcolor="#F8CECC" shape=box]
+		S2_Get -> S2_Build
+		S2_Build -> S2_Push
+		S2_Push -> S2_Get [label=Next color="#B85450" constraint=false]
+	}
+	Q2 [label="Queue 2" fillcolor="#F5F5F5" fixedsize=true shape=cylinder width=0.6]
+	subgraph cluster_stage3 {
+		color="#82B366" fontcolor="#444444" label="Stage 3: I/O Worker (Consumer)"
+		style=dashed
+		S3_Get [label="Get Item" fillcolor="#D5E8D4" shape=oval]
+		S3_Buffer [label="Add to Buffer" fillcolor="#D5E8D4" shape=box]
+		S3_Check [label="Buffer Full?" fillcolor="#D5E8D4" height=0.6 shape=diamond]
+		S3_Upsert [label="Batch Upsert
+(Network I/O)" fillcolor="#D5E8D4" shape=box style="filled,bold"]
+		S3_Get -> S3_Buffer
+		S3_Buffer -> S3_Check
+		S3_Check -> S3_Upsert [label=Yes]
+		S3_Upsert -> S3_Get [label="Clear & Repeat" color="#82B366" constraint=false]
+		S3_Check -> S3_Get [label="No (Continue)" color="#82B366" constraint=false]
+	}
+	DB [label="Qdrant DB" color="#D79B00" fillcolor="#FFE6CC" shape=cylinder]
+	Zip -> S1_Start [style=bold]
+	S1_Push -> Q1 [style=bold]
+	Q1 -> S2_Get [style=bold]
+	S2_Push -> Q2 [style=bold]
+	Q2 -> S3_Get [style=bold]
+	S3_Upsert -> DB [style=bold]
+}

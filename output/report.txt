@@ -2,9 +2,9 @@
 RAG Pipeline Evaluation Report
 ==================================================
 
-faithfulness: 0.9081
-answer_relevancy: 0.7575
-context_precision: 0.7667
-context_recall: 0.8000
+faithfulness: 0.9513
+answer_relevancy: 0.7378
+context_precision: 0.7283
+context_recall: 0.5608
 
 ==================================================
