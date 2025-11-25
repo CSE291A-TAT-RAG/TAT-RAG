@@ -4,6 +4,7 @@
 import json
 import argparse
 import zipfile
+import math
 from typing import Dict, Any, Optional, List
 
 
@@ -23,25 +24,20 @@ def get_token_count(chunk: Dict[str, Any]) -> int:
     tokens = get_token_count_from_meta(meta)
     if tokens is not None:
         return tokens
-    return len(chunk.get("text", "").split())
+    return len((chunk.get("text") or "").split())
 
 
 def can_merge(prev_chunk: Dict[str, Any], curr_chunk: Dict[str, Any]) -> bool:
     """
     判断两个 chunk 是否允许合并：
-    - doc_id 相同
-    - page 相同
-    不去强制限制 section_path，避免把表格拆得太碎，
-    但在 metadata 里记录所有参与的 section_path。
+    - 只要求 doc_id 相同，允许跨 page
+    page 变化会在 metadata 中通过 pages_merged 记录。
     """
     prev_meta = prev_chunk.get("metadata", {}) or {}
     curr_meta = curr_chunk.get("metadata", {}) or {}
 
     if prev_meta.get("doc_id") != curr_meta.get("doc_id"):
         return False
-    if prev_meta.get("page") != curr_meta.get("page"):
-        return False
-
     return True
 
 
@@ -65,7 +61,7 @@ def merge_two_chunks(
     base_meta = base_chunk.setdefault("metadata", {})
     new_meta = new_chunk.get("metadata", {}) or {}
 
-    # 更新 tokens
+    # 更新 tokens（用已有的 tokens 叠加）
     base_tokens = get_token_count(base_chunk)
     new_tokens = get_token_count(new_chunk)
     base_meta["tokens"] = base_tokens + new_tokens
@@ -127,7 +123,88 @@ def merge_two_chunks(
     if len(sec_set) > 1:
         base_meta["section_paths_merged"] = sorted(sec_set)
 
+    # page 合并信息：pages_merged 记录所有出现过的 page
+    page_set = set()
+    base_page = base_meta.get("page")
+    new_page = new_meta.get("page")
+    if base_page is not None:
+        page_set.add(int(base_page))
+    if new_page is not None:
+        page_set.add(int(new_page))
+    if len(page_set) > 1:
+        base_meta["pages_merged"] = sorted(page_set)
+
     return base_chunk
+
+
+def split_chunk_by_tokens(chunk: Dict[str, Any], max_tokens: int) -> List[Dict[str, Any]]:
+    """
+    如果 chunk 的 token 数超过 max_tokens，就按 token 数（简单用 split()）切成多个子 chunk。
+    每个子 chunk：
+    - text 为原 text 的一部分
+    - tokens 为该子部分的 token 数
+    - 继承原 metadata，大部分字段不变
+    - 新增 split_index / split_count
+    - 原 hash 放到 parent_hash，新 hash = 原 hash + "_part{i}"（如果原来有 hash）
+    """
+    total_tokens = get_token_count(chunk)
+    if total_tokens <= max_tokens:
+        return [chunk]
+
+    text = chunk.get("text") or ""
+    words = text.split()
+    if not words:
+        return [chunk]
+
+    pieces: List[Dict[str, Any]] = []
+    n = len(words)
+    split_count = math.ceil(n / max_tokens)
+
+    base_meta = chunk.get("metadata", {}) or {}
+    parent_hash = base_meta.get("hash")
+    base_doc_id = base_meta.get("doc_id", "unknown")
+    base_page = base_meta.get("page", "unknown")
+    base_order = base_meta.get("order")
+
+    for idx, start in enumerate(range(0, n, max_tokens)):
+        sub_words = words[start:start + max_tokens]
+        sub_text = " ".join(sub_words)
+
+        new_chunk: Dict[str, Any] = {
+            "text": sub_text,
+            "metadata": {}
+        }
+        new_meta = dict(base_meta)  # 浅拷贝基础 metadata
+        new_meta["tokens"] = len(sub_words)
+        new_meta["split_index"] = idx
+        new_meta["split_count"] = split_count
+
+        # 记录 parent_hash，生成新的 hash
+        if parent_hash is not None:
+            new_meta["parent_hash"] = parent_hash
+            new_meta["hash"] = f"{parent_hash}_part{idx}"
+        else:
+            # 没有原 hash，就构造一个简单的
+            new_meta["parent_hash"] = None
+            new_meta["hash"] = f"{base_doc_id}_{base_page}_{base_order}_part{idx}"
+
+        new_chunk["metadata"] = new_meta
+        pieces.append(new_chunk)
+
+    return pieces
+
+
+def flush_chunk(
+    chunk: Optional[Dict[str, Any]],
+    f_out,
+    max_tokens: int,
+) -> None:
+    """写出 chunk，如果超过 max_tokens 则先切割。"""
+    if chunk is None:
+        return
+    for sub_chunk in split_chunk_by_tokens(chunk, max_tokens):
+        json.dump(sub_chunk, f_out, ensure_ascii=False)
+        f_out.write("\n")
 
 
 def merge_chunks(
@@ -135,11 +212,13 @@ def merge_chunks(
     input_jsonl: str,
     output_jsonl: str,
     min_tokens: int = 40,
-    small_chunk_tokens: int = 15,
+    small_chunk_tokens: int = 20,
     max_tokens: int = 350,
 ) -> None:
     """
     从 zip 里的 jsonl 读入 chunk，合并短文本 chunk，并写出新的 jsonl。
+    - 允许跨 page 合并，只要 doc_id 相同
+    - 对最终超过 max_tokens 的 chunk 进行切割
     """
     with zipfile.ZipFile(input_zip, "r") as zf:
         with zf.open(input_jsonl, "r") as f_in, open(
@@ -159,21 +238,19 @@ def merge_chunks(
                     current_chunk = chunk
                     continue
 
-                # 判断是否可以和 current_chunk 合并（doc_id + page）
+                # 判断是否可以和 current_chunk 合并（只要求 doc_id 相同）
                 if not can_merge(current_chunk, chunk):
-                    # 边界：直接输出 current_chunk，换成新的
-                    json.dump(current_chunk, f_out, ensure_ascii=False)
-                    f_out.write("\n")
+                    # 边界：输出 current_chunk（带切割），换成新的
+                    flush_chunk(current_chunk, f_out, max_tokens=max_tokens)
                     current_chunk = chunk
                     continue
 
                 curr_tokens = get_token_count(chunk)
                 cur_tokens = get_token_count(current_chunk)
 
-                # 如果当前已经太长了，直接 flush，再从新 chunk 开始
+                # 如果当前已经太长了，先 flush，再从新 chunk 开始
                 if cur_tokens >= max_tokens:
-                    json.dump(current_chunk, f_out, ensure_ascii=False)
-                    f_out.write("\n")
+                    flush_chunk(current_chunk, f_out, max_tokens=max_tokens)
                     current_chunk = chunk
                     continue
 
@@ -183,15 +260,12 @@ def merge_chunks(
                 if cur_tokens < min_tokens or curr_tokens < small_chunk_tokens:
                     current_chunk = merge_two_chunks(current_chunk, chunk)
                 else:
-                    # 两边都不短，那就保持独立
-                    json.dump(current_chunk, f_out, ensure_ascii=False)
-                    f_out.write("\n")
+                    # 两边都不短，那就保持独立，把 current_chunk 写出去
+                    flush_chunk(current_chunk, f_out, max_tokens=max_tokens)
                     current_chunk = chunk
 
             # 文件结束别忘了最后一个
-            if current_chunk is not None:
-                json.dump(current_chunk, f_out, ensure_ascii=False)
-                f_out.write("\n")
+            flush_chunk(current_chunk, f_out, max_tokens=max_tokens)
 
 
 def main():
