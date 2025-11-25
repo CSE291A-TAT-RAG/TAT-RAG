@@ -477,7 +477,7 @@ JSON format:
                 "role": "system",
                 "content": prompt,
             },
-            {"role": "user", "content": query},
+            {"role": "user", "content": f"Do NOT answer, ONLY decompose query: {query}"},
         ]
 
         max_attempts = 3
@@ -551,17 +551,28 @@ JSON format:
         """
         logger.info(f"Processing query: {query}")
         
-        # test query llm
-        query_list = self.generate_query(query)['answer']
-        logger.info(f"New queries: \n{query_list}\n")
+        # query rewrite
+        rewrite = False
+        query_list = []
+        if rewrite:
+            query_list = self.generate_query(query)['answer']
+            logger.info(f"New queries: \n{query_list}\n")
 
         # Retrieve relevant documents with score filtering
         contexts = []
         retrieved_docs_list = []
         limited_docs_list = []
-        for q in query_list:
-            logger.info(f"Retrived for : {q}")
-            retrieved_docs = self.retrieve(q, top_k, score_threshold)
+        if rewrite:
+            for q in query_list:
+                logger.info(f"Retrived for : {q}")
+                retrieved_docs = self.retrieve(q, top_k, score_threshold)
+                limited_docs = self._select_docs_for_generation(retrieved_docs)
+                contexts = contexts + [doc.get("content", "") for doc in limited_docs]
+                retrieved_docs_list += retrieved_docs
+                limited_docs_list += limited_docs
+        else:
+            logger.info(f"Retrived for : {query}")
+            retrieved_docs = self.retrieve(query, top_k, score_threshold)
             limited_docs = self._select_docs_for_generation(retrieved_docs)
             contexts = contexts + [doc.get("content", "") for doc in limited_docs]
             retrieved_docs_list += retrieved_docs
