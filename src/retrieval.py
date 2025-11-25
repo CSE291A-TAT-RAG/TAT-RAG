@@ -1,6 +1,7 @@
 """Retrieval and generation module for RAG pipeline."""
 
 import logging
+import json
 from collections import defaultdict
 from typing import List, Dict, Any, Optional
 
@@ -426,6 +427,111 @@ Answer: Provide a detailed and accurate answer based on the contexts above. If t
             "usage": usage,
         }
 
+
+    def query_prompt(self) -> str:
+        """
+        Generate a system prompt for the LLM.
+
+        Args:
+            query: User query
+
+        Returns:
+            Formatted prompt string
+        """
+
+        prompt = """You are a retrieval-decomposition assistant.
+
+IMPORTANT RULES (you must follow them exactly):
+1. NEVER answer the user's question.
+2. NEVER perform calculations or give factual answers.
+3. ALWAYS decompose the user's question into retrieval-friendly statements.
+4. ALWAYS output ONLY the JSON format shown below.
+5. NEVER output anything outside the JSON.
+
+JSON format:
+{
+  "queries": [
+    "query 1",
+    "query 2",
+    "query 3"
+  ]
+}"""
+
+        return prompt
+
+    def generate_query(self, query: str) -> Dict[str, Any]:
+        """
+        Generate an answer using the LLM.
+
+        Args:
+            query: User query
+            contexts: List of retrieved context strings
+
+        Returns:
+            Dictionary with answer and metadata
+        """
+        prompt = self.query_prompt()
+
+        messages = [
+            {
+                "role": "system",
+                "content": prompt,
+            },
+            {"role": "user", "content": query},
+        ]
+
+        max_attempts = 3
+        response: Optional[Dict[str, Any]] = None
+        answer: str = ""
+        usage: Dict[str, Any] = {}
+
+        for attempt in range(1, max_attempts + 1):
+            response = self.llm_provider.generate(
+                messages=messages,
+                temperature=self.config.llm.temperature,
+                max_tokens=self.config.llm.max_tokens,
+            )
+
+            usage = dict(response.get("usage", {}) or {})
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
+            total_tokens = usage.get("total_tokens")
+            if total_tokens is None:
+                total_tokens = prompt_tokens + completion_tokens
+                usage["total_tokens"] = total_tokens
+
+            answer = (response.get("content") or "")
+            answer = answer.replace("```json\n", "")
+            answer = answer.replace("\n```", "")
+            logger.info(f"Respons: {response}\n")
+
+            if answer or total_tokens > 0:
+                break
+
+            logger.warning(
+                "Received empty response from LLM (attempt %s/%s) for query: %s",
+                attempt,
+                max_attempts,
+                query[:50],
+            )
+
+        else:
+            logger.error(
+                "LLM failed to return a non-empty response after %s attempts for query: %s",
+                max_attempts,
+                query[:50],
+            )
+
+        logger.info(f"Generated answer for query: {query[:50]}...")
+
+        return {
+            "answer": json.loads(answer)["queries"],
+            # "query": query,
+            # "contexts": contexts,
+            # "model": response.get("model") if response else None,
+            # "usage": usage,
+        }
+
     def query(
         self,
         query: str,
@@ -444,18 +550,30 @@ Answer: Provide a detailed and accurate answer based on the contexts above. If t
             Dictionary with answer, contexts, and metadata
         """
         logger.info(f"Processing query: {query}")
+        
+        # test query llm
+        query_list = self.generate_query(query)['answer']
+        logger.info(f"New queries: \n{query_list}\n")
 
         # Retrieve relevant documents with score filtering
-        retrieved_docs = self.retrieve(query, top_k, score_threshold)
-        limited_docs = self._select_docs_for_generation(retrieved_docs)
-        contexts = [doc.get("content", "") for doc in limited_docs]
+        contexts = []
+        retrieved_docs_list = []
+        limited_docs_list = []
+        for q in query_list:
+            logger.info(f"Retrived for : {q}")
+            retrieved_docs = self.retrieve(q, top_k, score_threshold)
+            limited_docs = self._select_docs_for_generation(retrieved_docs)
+            contexts = contexts + [doc.get("content", "") for doc in limited_docs]
+            retrieved_docs_list += retrieved_docs
+            limited_docs_list += limited_docs
+            
 
         # Generate answer
         result = self.generate(query, contexts)
 
         # Add retrieved documents info
-        result["retrieved_docs"] = retrieved_docs
-        result["used_retrieved_docs"] = limited_docs
+        result["retrieved_docs"] = retrieved_docs_list
+        result["used_retrieved_docs"] = limited_docs_list
 
         return result
 
