@@ -439,16 +439,46 @@ Answer: Provide a detailed and accurate answer based on the contexts above. If t
             Formatted prompt string
         """
 
-        prompt = """You are a retrieval-decomposition assistant.
+        prompt = """You are an expert financial analyst and a search query decomposition assistant. Your task is to break down a complex user question into a series of simple, self-contained sub-queries. These sub-queries will be used to retrieve information from a database of financial documents.
 
 IMPORTANT RULES (you must follow them exactly):
 1. NEVER answer the user's question.
 2. NEVER perform calculations or give factual answers.
-3. ALWAYS decompose the user's question into retrieval-friendly statements.
-4. ALWAYS output ONLY the JSON format shown below.
-5. NEVER output anything outside the JSON.
+3. Decompose the question into simple, independent queries that can each be answered by a small piece of text.
+4. Each sub-query should be a clear, direct question or statement about a single piece of information.
+5. Preserve key entities, numbers, and dates from the original question in the sub-queries.
+6. ALWAYS output ONLY a valid JSON object in the format shown below.
+7. NEVER output any text, explanation, or code block markers before or after the JSON object.
 
-JSON format:
+### High-Quality Examples
+
+**Example 1:**
+User Question: "What is the difference in total revenue in 2019 between A10-Networks and Oracle?"
+
+Your JSON Output:
+{
+  "queries": [
+    "total revenue of A10-Networks in 2019",
+    "total revenue of Oracle in 2019"
+  ]
+}
+
+**Example 2:**
+User Question: "What was the total cost of revenue for A10 Networks in 2019 and what were its main components?"
+
+Your JSON Output:
+{
+  "queries": [
+    "A10 Networks total cost of revenue in 2019",
+    "components of A10 Networks cost of revenue"
+  ]
+}
+
+### Your Task
+
+Now, decompose the user's question following all the rules and examples.
+
+JSON Output Format:
 {
   "queries": [
     "query 1",
@@ -524,19 +554,54 @@ JSON format:
 
         logger.info(f"Generated answer for query: {query[:50]}...")
 
-        return {
-            "answer": json.loads(answer)["queries"],
-            # "query": query,
-            # "contexts": contexts,
-            # "model": response.get("model") if response else None,
-            # "usage": usage,
-        }
+        queries = []
+        if answer.strip():
+            try:
+                queries = json.loads(answer).get("queries", [])
+            except json.JSONDecodeError:
+                logger.warning(
+                    "Failed to decode JSON from LLM for query decomposition. Response: %s",
+                    answer,
+                )
+        return {"answer": queries}
+
+    def decider_prompt(self) -> str:
+        """
+        Generate a system prompt for the LLM to decide if a query is simple or complex.
+        """
+        prompt = """You are a query analysis expert. Your task is to classify a user's query as either "SIMPLE" or "COMPLEX".
+
+A "SIMPLE" query asks for a single, specific piece of information.
+A "COMPLEX" query requires comparing multiple pieces of information, summarizing multiple points, or involves multiple steps.
+
+Respond with ONLY the word "SIMPLE" or "COMPLEX". Do not provide any explanation.
+
+### Examples
+
+User Query: "What was the total cost of revenue for A10 Networks in 2019?"
+Your Answer: SIMPLE
+
+User Query: "What is the difference in total revenue in 2019 between A10-Networks and Oracle?"
+Your Answer: COMPLEX
+
+User Query: "Who are the members of the board of directors in Xperi?"
+Your Answer: COMPLEX
+
+User Query: "What is A10 Networks' total revenue earned by the company in 2019?"
+Your Answer: SIMPLE
+
+### Your Task
+
+Classify the following user query.
+"""
+        return prompt
 
     def query(
         self,
         query: str,
         top_k: Optional[int] = None,
         score_threshold: Optional[float] = None,
+        rewrite: bool = True,
     ) -> Dict[str, Any]:
         """
         Complete RAG pipeline: retrieve and generate.
@@ -545,48 +610,103 @@ JSON format:
             query: User query
             top_k: Maximum number of documents to retrieve (default from config)
             score_threshold: Minimum similarity score (default from config)
+            rewrite: If True, perform query decomposition (default: True)
 
         Returns:
             Dictionary with answer, contexts, and metadata
         """
         logger.info(f"Processing query: {query}")
-        
-        # query rewrite
-        rewrite = False
+
+        # Adaptive Routing: Decide whether to use query rewrite
+        if rewrite: # Only run decider if rewrite is enabled globally
+            decider_messages = [
+                {"role": "system", "content": self.decider_prompt()},
+                {"role": "user", "content": query},
+            ]
+            try:
+                decision_response = self.llm_provider.generate(messages=decider_messages, temperature=0.0, max_tokens=10)
+                decision = (decision_response.get("content") or "").strip().upper()
+                logger.info(f"Query classified as: {decision}")
+                if decision != "COMPLEX":
+                    rewrite = False # Override to False if query is simple
+            except Exception as e:
+                logger.warning(f"Query classification failed, defaulting to rewrite=True. Error: {e}")
+                rewrite = True # Default to complex handling on failure
+
         query_list = []
         if rewrite:
             query_list = self.generate_query(query)['answer']
+            if not query_list: # Fallback if decomposition fails
+                query_list = [query]
             logger.info(f"New queries: \n{query_list}\n")
+        else:
+            query_list = [query]
 
         # Retrieve relevant documents with score filtering
-        contexts = []
-        retrieved_docs_list = []
-        limited_docs_list = []
-        if rewrite:
-            for q in query_list:
-                logger.info(f"Retrived for : {q}")
-                retrieved_docs = self.retrieve(q, top_k, score_threshold)
-                limited_docs = self._select_docs_for_generation(retrieved_docs)
-                contexts = contexts + [doc.get("content", "") for doc in limited_docs]
-                retrieved_docs_list += retrieved_docs
-                limited_docs_list += limited_docs
-        else:
-            logger.info(f"Retrived for : {query}")
-            retrieved_docs = self.retrieve(query, top_k, score_threshold)
-            limited_docs = self._select_docs_for_generation(retrieved_docs)
-            contexts = contexts + [doc.get("content", "") for doc in limited_docs]
-            retrieved_docs_list += retrieved_docs
-            limited_docs_list += limited_docs
-            
+        all_retrieved_docs = []
+        for q in query_list:
+            logger.info(f"Retrieving for sub-query: {q}")
+            retrieved_docs = self.retrieve(q, top_k, score_threshold)
+            all_retrieved_docs.extend(retrieved_docs)
+
+        # De-duplicate and sort all retrieved documents
+        unique_docs_map = {doc['id']: doc for doc in reversed(all_retrieved_docs)}
+        unique_docs = sorted(unique_docs_map.values(), key=lambda d: d['score'], reverse=True)
+
+        # Apply adaptive filtering and final selection
+        filtered_docs = self._apply_adaptive_filters(unique_docs)
+        final_docs_for_generation = self._select_docs_for_generation(filtered_docs)
+
+        contexts = [doc.get("content", "") for doc in final_docs_for_generation]
 
         # Generate answer
         result = self.generate(query, contexts)
 
         # Add retrieved documents info
-        result["retrieved_docs"] = retrieved_docs_list
-        result["used_retrieved_docs"] = limited_docs_list
+        result["retrieved_docs"] = unique_docs
+        result["used_retrieved_docs"] = final_docs_for_generation
 
         return result
+
+    def retrieve_with_rewrite(
+        self,
+        query: str,
+        top_k: Optional[int] = None,
+        score_threshold: Optional[float] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve documents with query decomposition, but without generation.
+        This is useful for evaluating the retrieval step with query rewriting.
+
+        Args:
+            query: User query
+            top_k: Maximum number of documents to retrieve per sub-query
+            score_threshold: Minimum similarity score
+
+        Returns:
+            A de-duplicated and sorted list of retrieved documents.
+        """
+        logger.info(f"Processing query with rewrite for retrieval evaluation: {query}")
+
+        query_list = self.generate_query(query).get('answer', [])
+        if not query_list:  # Fallback if decomposition fails
+            query_list = [query]
+        logger.info(f"Decomposed queries for retrieval: \n{query_list}\n")
+
+        all_retrieved_docs = []
+        for q in query_list:
+            logger.info(f"Retrieving for sub-query: {q}")
+            retrieved_docs = self.retrieve(q, top_k, score_threshold)
+            all_retrieved_docs.extend(retrieved_docs)
+
+        # De-duplicate and sort all retrieved documents by score
+        unique_docs_map = {doc['id']: doc for doc in reversed(all_retrieved_docs)}
+        unique_docs_list = list(unique_docs_map.values())
+
+        # Perform a global rerank against the original query to find the best documents overall.
+        # This is crucial because scores from different sub-queries are not comparable.
+        reranked_docs = self._maybe_rerank(query, unique_docs_list)
+        return reranked_docs
 
     def batch_query(
         self,

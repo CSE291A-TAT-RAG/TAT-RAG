@@ -350,6 +350,11 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Optional path to store per-query retrieval details as JSON.",
     )
+    parser.add_argument(
+        "--rewrite",
+        action="store_true",
+        help="Enable query rewriting (decomposition) before retrieval.",
+    )
     return parser.parse_args()
 
 
@@ -378,12 +383,21 @@ def main() -> None:
     per_query_results: List[Dict[str, Any]] = []
     detailed_rows: List[Dict[str, Any]] = []
 
+    if args.rewrite:
+        logger.info("Query rewriting is ENABLED for this evaluation run.")
+    else:
+        logger.info("Query rewriting is DISABLED for this evaluation run.")
+
     for sample in samples:
-        retrieved = pipeline.retrieve(
-            sample.query,
-            top_k=retrieval_k,
-            score_threshold=score_threshold,
-        )
+        if args.rewrite:
+            retrieved = pipeline.retrieve_with_rewrite(
+                sample.query, top_k=retrieval_k, score_threshold=score_threshold
+            )
+        else:
+            retrieved = pipeline.retrieve(
+                sample.query, top_k=retrieval_k, score_threshold=score_threshold
+            )
+
         evaluation = evaluate_query(retrieved, sample.gold_items, k_values)
         per_query_results.append(evaluation)
 

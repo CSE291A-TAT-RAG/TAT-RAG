@@ -56,6 +56,8 @@ docker-compose exec rag-app streamlit run app.py --server.port 8501 --server.add
 docker-compose exec rag-app python scripts/evaluate_retrieval.py \
   --golden-path requests/requests.json \
   --top-k 10 --k-values 1 3 5 10
+  #--rewrite
+
 
 # Evaluate with request.json
 docker-compose exec rag-app python main.py evaluate \
