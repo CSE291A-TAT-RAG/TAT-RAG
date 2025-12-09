@@ -13,7 +13,7 @@ import pandas as pd
 CONFIG = {
     "min_chunk_length": 50,
     "max_chunk_tokens": 256,
-    "chunk_overlap": 64,
+    "chunk_overlap": 64, # usually be 5-10% of the max_chunk_tokens
     
     "input_dir": "../tat_docs_test/",
     "output_file": "chunks_all.jsonl",
