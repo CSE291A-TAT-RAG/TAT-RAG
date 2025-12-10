@@ -9,7 +9,7 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "${repo_root}"
 
 echo "--- Chunk PDFs with chunk_revise_.py ---"
-docker-compose run --rm -w //app/scripts rag-app python chunk_revise_.py
+docker-compose run --rm -w //app/scripts rag-app python chunking_baseline.py
 
 echo "--- Ingest generated chunks ---"
 docker-compose exec rag-app python main.py ingest //app/data/chunks_all.jsonl

@@ -378,11 +378,6 @@ def parse_args() -> argparse.Namespace:
         help="Optional path to store per-query retrieval details as JSON.",
     )
     parser.add_argument(
-        "--rewrite",
-        action="store_true",
-        help="Enable query rewriting (decomposition) before retrieval.",
-    )
-    parser.add_argument(
         "--fuzzy-threshold",
         type=float,
         default=0.7,
@@ -415,21 +410,10 @@ def main() -> None:
 
     per_query_results: List[Dict[str, Any]] = []
     detailed_rows: List[Dict[str, Any]] = []
-
-    if args.rewrite:
-        logger.info("Query rewriting is ENABLED for this evaluation run.")
-    else:
-        logger.info("Query rewriting is DISABLED for this evaluation run.")
-
     for sample in samples:
-        if args.rewrite:
-            retrieved = pipeline.retrieve_with_rewrite(
-                sample.query, top_k=retrieval_k, score_threshold=score_threshold
-            )
-        else:
-            retrieved = pipeline.retrieve(
-                sample.query, top_k=retrieval_k, score_threshold=score_threshold
-            )
+        retrieved = pipeline.retrieve(
+            sample.query, top_k=retrieval_k, score_threshold=score_threshold
+        )
 
         evaluation = evaluate_query(retrieved, sample.gold_items, k_values, args.fuzzy_threshold)
         per_query_results.append(evaluation)

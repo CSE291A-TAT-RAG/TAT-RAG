@@ -34,7 +34,6 @@ services:
       - ./output:/app/output
       - ./models:/app/models              # Mount models directory
       - ./src:/app/src                    # Mount source code for development
-      - ./golden_set:/app/golden_set      # Mount golden set evaluations
       - ./requests:/app/requests        # Mount requests directory
       - ./main.py:/app/main.py            # Mount main script
       - ./app.py:/app/app.py              # Mount Streamlit app

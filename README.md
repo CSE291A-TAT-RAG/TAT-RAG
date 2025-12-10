@@ -61,8 +61,7 @@ docker-compose exec rag-app streamlit run app.py --server.port 8501 --server.add
 docker-compose exec rag-app python scripts/evaluate_retrieval.py \
   --golden-path requests/requests.json \
   --top-k 10 --k-values 1 3 5 10 \
-  --save-details /app/output/retrieval_details.json \
-  --rewrite
+  --save-details /app/output/retrieval_details.json
 
 
 # Evaluate with request.json
@@ -71,7 +70,18 @@ docker-compose exec rag-app python main.py evaluate \
   --json-question-key query \
   --json-answer-key answer \
   --output /app/output/report.txt
+
+docker-compose exec rag-app python scripts/latency_eval.py \
+  --input //app/requests/requests.json \
+  --limit 10 \
+  --top-k 20 \
+  --price-in 0.001 \
+  --price-out 0.005 \
+  --output //app/output/latency_eval.json
 ```
+
+
+
 
 ## Configuration
 Update `.env` to control the pipeline:

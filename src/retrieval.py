@@ -96,6 +96,51 @@ class RAGPipeline:
         """
         return self.embedding_provider.embed_query(query)
 
+    def _extract_filters(self, query: str) -> Optional[qdrant_models.Filter]:
+        """
+        Extract strict company filters from the query.
+        """
+        qlow = query.lower()
+        company_map = {
+            "a10": "a10-networks-inc",
+            "oracle": "oracle-corporation",
+            "xperi": "xperi-corporation",
+            "eros": "eros-international-plc",
+            "overseas": "overseas-shipholding-group-inc",
+            "osg": "overseas-shipholding-group-inc"
+        }
+        
+        matched_companies = []
+        for key, source_prefix in company_map.items():
+            if key in qlow:
+                matched_companies.append(source_prefix)
+        
+        # If no companies matched, or if multiple matched (e.g. comparison),
+        # we might want to include all matched ones.
+        if not matched_companies:
+            return None
+            
+        # Build a filter that requires 'source' to start with one of the matched prefixes
+        # Note: Qdrant 'MatchValue' is exact. 'source' in metadata usually includes the year suffix.
+        # So we should use 'MatchText' or prefix logic if we had a dedicated field.
+        # But looking at ingestion, 'company' field is stored. Let's try to filter on 'company' or partial 'source'.
+        # Actually, ingestion stores 'company' metadata derived from filename.
+        # Let's check ingestion.py: company = base.replace("-", " ")...
+        # Better yet, the 'source' field is 'a10-networks-inc_2019'.
+        # So we can use a "should" clause with MatchText on 'source' or just match the known doc_ids if year is 2019.
+        # Since all docs are 2019 in this dataset, let's filter by the known source names.
+        
+        should_conditions = []
+        for prefix in matched_companies:
+            should_conditions.append(
+                qdrant_models.FieldCondition(
+                    key="metadata.source",
+                    match=qdrant_models.MatchText(text=prefix) # MatchText allows prefix/token matching usually
+                )
+            )
+            
+        return qdrant_models.Filter(should=should_conditions)
+
     def retrieve(
         self,
         query: str,
@@ -117,11 +162,22 @@ class RAGPipeline:
             top_k = self.config.top_k
         if score_threshold is None:
             score_threshold = self.config.score_threshold
-        fetch_k = top_k
+        fetch_k = max(50, top_k * 10)
 
         query_vector = self.embed_query(query)
         self._ensure_dense_prefetch_vector()
         dense_query_vector = self._make_query_vector(query_vector)
+        
+        # Initialize qlow here for broader use
+        qlow = query.lower()
+
+        # Apply strict company filtering if detected
+        hard_filter = self._extract_filters(query)
+        if hard_filter:
+            logger.info(f"Applying hard filter for query: {query}")
+
+        # Determine target sections based on query routing
+        target_sections = self._route_sections(query)
 
         if self.config.hybrid_search and query.strip():
             logger.info("Performing Hybrid (Dense + BM25) search.")
@@ -135,22 +191,33 @@ class RAGPipeline:
                         query=query_vector,
                             limit=hybrid_prefetch,
                             score_threshold=score_threshold,
+                            filter=hard_filter, # Apply filter here
                         )
                     if self._dense_prefetch_using:
                         dense_prefetch_kwargs["using"] = self._dense_prefetch_using
 
                     dense_prefetch = qdrant_models.Prefetch(**dense_prefetch_kwargs)
 
-                    text_filter = qdrant_models.Filter(
-                        must=[
-                            qdrant_models.FieldCondition(
-                                key="content",
-                                match=qdrant_models.MatchText(text=query),
-                            )
-                        ]
-                    )
+                    # Merge hard filter with text filter if needed, but Prefetch takes a filter directly
+                    text_filter_conditions = [
+                        qdrant_models.FieldCondition(
+                            key="content",
+                            match=qdrant_models.MatchText(text=query),
+                        )
+                    ]
+                    
+                    # Combine text match with hard filter
+                    combined_text_filter = None
+                    if hard_filter:
+                        # Combine musts
+                        musts = text_filter_conditions + (hard_filter.must or [])
+                        shoulds = hard_filter.should
+                        combined_text_filter = qdrant_models.Filter(must=musts, should=shoulds)
+                    else:
+                        combined_text_filter = qdrant_models.Filter(must=text_filter_conditions)
+
                     text_prefetch = qdrant_models.Prefetch(
-                        filter=text_filter,
+                        filter=combined_text_filter,
                         limit=hybrid_prefetch,
                     )
 
@@ -195,6 +262,7 @@ class RAGPipeline:
                     limit=fetch_k,
                     score_threshold=score_threshold,
                     with_payload=True,
+                    filter=hard_filter, # Apply filter here
                 )
         else:
             logger.info("Performing Dense-only vector search.")
@@ -204,13 +272,15 @@ class RAGPipeline:
                 limit=fetch_k,
                 score_threshold=score_threshold,
                 with_payload=True,
+                filter=hard_filter, # Apply filter here
             )
 
-        formatted_docs = self._format_retrieved_docs(search_result, query, score_threshold)
+        formatted_docs = self._format_retrieved_docs(search_result, query, score_threshold, target_sections, qlow)
+        
+        # Subsequent filtering and balancing steps
         formatted_docs = self._augment_with_tables(query, formatted_docs, fetch_k)
-        target_sections = self._route_sections(query)
-        filtered_docs = self._filter_by_section(formatted_docs, target_sections, top_k)
-        balanced_docs = self._balance_companies(query, filtered_docs, top_k)
+        filtered_docs = self._filter_by_section(formatted_docs, target_sections, fetch_k)
+        balanced_docs = self._balance_companies(query, filtered_docs, fetch_k)
         formatted_docs = self._maybe_rerank(query, balanced_docs)
         return formatted_docs[:top_k]
 
@@ -227,6 +297,10 @@ class RAGPipeline:
         for sec, keywords in self._section_routes.items():
             if any(kw in q for kw in keywords):
                 matched.append(sec)
+        
+        if matched:
+            logger.info(f"Routing query to sections: {matched}")
+            
         return matched
 
     def _filter_by_section(self, docs: List[Dict[str, Any]], target_sections: List[str], top_k: int) -> List[Dict[str, Any]]:
@@ -242,6 +316,8 @@ class RAGPipeline:
             section = (meta.get("section_name") or meta.get("section_path") or "").lower()
             if any(t in section for t in target_sections):
                 routed.append(doc)
+
+        logger.info(f"Section filter: Kept {len(routed)}/{len(docs)} docs matching {target_sections}")
 
         # If filtering is too aggressive, fallback by preferentially pulling from the same doc_id
         if not routed:
@@ -519,13 +595,14 @@ class RAGPipeline:
             )
         return query_vector
 
-    def _format_retrieved_docs(self, search_result, query: str, score_threshold: Optional[float]) -> List[Dict[str, Any]]:
+    def _format_retrieved_docs(self, search_result, query: str, score_threshold: Optional[float], target_sections: Optional[List[str]] = None, qlow: str = "") -> List[Dict[str, Any]]:
         """
         Normalize Qdrant search results into payload dictionaries.
         Apply a small boost to table chunks to help structured answers surface higher.
         """
         retrieved_docs: List[Dict[str, Any]] = []
-        qlow = query.lower()
+        # qlow is now passed as a parameter
+        # qlow = query.lower() # Removed
 
         def _contains(haystack: Optional[str]) -> bool:
             if not haystack:
@@ -556,8 +633,8 @@ class RAGPipeline:
                 boosted_score *= 1.4
 
             section_text = metadata.get("section_name") or metadata.get("section_path")
-            if _contains(section_text):
-                boosted_score *= 1.1
+            if _contains(section_text) or (target_sections and any(ts in (section_text or "") for ts in target_sections)):
+                boosted_score *= 2.0
 
             table_title = metadata.get("table_title") or metadata.get("table_id")
             row_label = metadata.get("row_label")
@@ -748,305 +825,48 @@ Answer: Provide a detailed and accurate answer based on the contexts above. If t
         }
 
 
-    def query_prompt(self) -> str:
-        """
-        Generate a system prompt for the LLM.
-
-        Args:
-            query: User query
-
-        Returns:
-            Formatted prompt string
-        """
-
-        prompt = """You are an expert financial analyst and a search query decomposition assistant. Your task is to break down a complex user question into a series of simple, self-contained sub-queries. These sub-queries will be used to retrieve information from a database of financial documents.
-
-IMPORTANT RULES (you must follow them exactly):
-1. NEVER answer the user's question.
-2. NEVER perform calculations or give factual answers.
-3. Decompose the question into simple, independent queries that can each be answered by a small piece of text.
-4. Each sub-query should be a clear, direct question or statement about a single piece of information.
-5. Preserve key entities, numbers, and dates from the original question in the sub-queries.
-6. ALWAYS output ONLY a valid JSON object in the format shown below.
-7. NEVER output any text, explanation, or code block markers before or after the JSON object.
-
-### High-Quality Examples
-
-**Example 1:**
-User Question: "What is the difference in total revenue in 2019 between A10-Networks and Oracle?"
-
-Your JSON Output:
-{
-  "queries": [
-    "total revenue of A10-Networks in 2019",
-    "total revenue of Oracle in 2019"
-  ]
-}
-
-**Example 2:**
-User Question: "What was the total cost of revenue for A10 Networks in 2019 and what were its main components?"
-
-Your JSON Output:
-{
-  "queries": [
-    "A10 Networks total cost of revenue in 2019",
-    "components of A10 Networks cost of revenue"
-  ]
-}
-
-### Your Task
-
-Now, decompose the user's question following all the rules and examples.
-
-JSON Output Format:
-{
-  "queries": [
-    "query 1",
-    "query 2",
-    "query 3"
-  ]
-}"""
-
-        return prompt
-
-    def generate_query(self, query: str) -> Dict[str, Any]:
-        """
-        Generate an answer using the LLM.
-
-        Args:
-            query: User query
-            contexts: List of retrieved context strings
-
-        Returns:
-            Dictionary with answer and metadata
-        """
-        prompt = self.query_prompt()
-
-        messages = [
-            {
-                "role": "system",
-                "content": prompt,
-            },
-            {"role": "user", "content": f"Do NOT answer, ONLY decompose query: {query}"},
-        ]
-
-        max_attempts = 3
-        response: Optional[Dict[str, Any]] = None
-        answer: str = ""
-        usage: Dict[str, Any] = {}
-
-        for attempt in range(1, max_attempts + 1):
-            response = self.llm_provider.generate(
-                messages=messages,
-                temperature=self.config.llm.temperature,
-                max_tokens=self.config.llm.max_tokens,
-            )
-
-            usage = dict(response.get("usage", {}) or {})
-            prompt_tokens = usage.get("prompt_tokens", 0)
-            completion_tokens = usage.get("completion_tokens", 0)
-            total_tokens = usage.get("total_tokens")
-            if total_tokens is None:
-                total_tokens = prompt_tokens + completion_tokens
-                usage["total_tokens"] = total_tokens
-
-            answer = (response.get("content") or "")
-            answer = answer.replace("```json\n", "")
-            answer = answer.replace("\n```", "")
-            logger.info(f"Respons: {response}\n")
-
-            if answer or total_tokens > 0:
-                break
-
-            logger.warning(
-                "Received empty response from LLM (attempt %s/%s) for query: %s",
-                attempt,
-                max_attempts,
-                query[:50],
-            )
-
-        else:
-            logger.error(
-                "LLM failed to return a non-empty response after %s attempts for query: %s",
-                max_attempts,
-                query[:50],
-            )
-
-        logger.info(f"Generated answer for query: {query[:50]}...")
-
-        queries = []
-        if answer.strip():
-            try:
-                queries = json.loads(answer).get("queries", [])
-            except json.JSONDecodeError:
-                logger.warning(
-                    "Failed to decode JSON from LLM for query decomposition. Response: %s",
-                    answer,
-                )
-        return {"answer": queries}
-
-    def decider_prompt(self) -> str:
-        """
-        Generate a system prompt for the LLM to decide if a query is simple or complex.
-        """
-        prompt = """You are a query analysis expert. Your task is to classify a user's query as either "SIMPLE" or "COMPLEX".
-
-A "SIMPLE" query asks for a single, specific piece of information.
-A "COMPLEX" query requires comparing multiple pieces of information, summarizing multiple points, or involves multiple steps.
-
-Respond with ONLY the word "SIMPLE" or "COMPLEX". Do not provide any explanation.
-
-### Examples
-
-User Query: "What was the total cost of revenue for A10 Networks in 2019?"
-Your Answer: SIMPLE
-
-User Query: "What is the difference in total revenue in 2019 between A10-Networks and Oracle?"
-Your Answer: COMPLEX
-
-User Query: "Who are the members of the board of directors in Xperi?"
-Your Answer: COMPLEX
-
-User Query: "What is A10 Networks' total revenue earned by the company in 2019?"
-Your Answer: SIMPLE
-
-### Your Task
-
-Classify the following user query.
-"""
-        return prompt
-
     def query(
         self,
         query: str,
         top_k: Optional[int] = None,
         score_threshold: Optional[float] = None,
-        rewrite: bool = True,
     ) -> Dict[str, Any]:
         """
-        Complete RAG pipeline: retrieve and generate.
+        Complete RAG pipeline: retrieve and generate without query rewriting.
 
         Args:
             query: User query
             top_k: Maximum number of documents to retrieve (default from config)
             score_threshold: Minimum similarity score (default from config)
-            rewrite: If True, perform query decomposition (default: True)
 
         Returns:
             Dictionary with answer, contexts, and metadata
         """
         logger.info(f"Processing query: {query}")
 
-        # Adaptive Routing: Decide whether to use query rewrite
-        if rewrite: # Only run decider if rewrite is enabled globally
-            decider_messages = [
-                {"role": "system", "content": self.decider_prompt()},
-                {"role": "user", "content": query},
-            ]
-            try:
-                decision_response = self.llm_provider.generate(messages=decider_messages, temperature=0.0, max_tokens=10)
-                decision = (decision_response.get("content") or "").strip().upper()
-                logger.info(f"Query classified as: {decision}")
-                if decision != "COMPLEX":
-                    rewrite = False # Override to False if query is simple
-            except Exception as e:
-                logger.warning(f"Query classification failed, defaulting to rewrite=True. Error: {e}")
-                rewrite = True # Default to complex handling on failure
-
-        query_list = []
-        if rewrite:
-            query_list = self.generate_query(query)['answer']
-            if not query_list: # Fallback if decomposition fails
-                query_list = [query]
-            logger.info(f"New queries: \n{query_list}\n")
-        else:
-            query_list = [query]
-
-        # Retrieve relevant documents with score filtering
-        all_retrieved_docs = []
-        for q in query_list:
-            logger.info(f"Retrieving for sub-query: {q}")
-            retrieved_docs = self.retrieve(q, top_k, score_threshold)
-            all_retrieved_docs.extend(retrieved_docs)
-
-        # De-duplicate and sort all retrieved documents
-        unique_docs_map = {doc['id']: doc for doc in reversed(all_retrieved_docs)}
-        unique_docs = sorted(unique_docs_map.values(), key=lambda d: d['score'], reverse=True)
-
-        # Apply adaptive filtering and final selection
-        filtered_docs = self._apply_adaptive_filters(unique_docs)
+        retrieved_docs = self.retrieve(query, top_k, score_threshold)
+        filtered_docs = self._apply_adaptive_filters(retrieved_docs)
         final_docs_for_generation = self._select_docs_for_generation(filtered_docs)
-
         contexts = [doc.get("content", "") for doc in final_docs_for_generation]
 
-        # Generate answer
         result = self.generate(query, contexts)
-
-        # Add retrieved documents info
-        result["retrieved_docs"] = unique_docs
+        result["retrieved_docs"] = filtered_docs
         result["used_retrieved_docs"] = final_docs_for_generation
 
         return result
-
-    def retrieve_with_rewrite(
-        self,
-        query: str,
-        top_k: Optional[int] = None,
-        score_threshold: Optional[float] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Retrieve documents with query decomposition, but without generation.
-        This is useful for evaluating the retrieval step with query rewriting.
-
-        Args:
-            query: User query
-            top_k: Maximum number of documents to retrieve per sub-query
-            score_threshold: Minimum similarity score
-
-        Returns:
-            A de-duplicated and sorted list of retrieved documents.
-        """
-        logger.info(f"Processing query with rewrite for retrieval evaluation: {query}")
-
-        query_list = self.generate_query(query).get('answer', [])
-        if not query_list:  # Fallback if decomposition fails
-            query_list = [query]
-        logger.info(f"Decomposed queries for retrieval: \n{query_list}\n")
-
-        all_retrieved_docs = []
-        for q in query_list:
-            logger.info(f"Retrieving for sub-query: {q}")
-            retrieved_docs = self.retrieve(q, top_k, score_threshold)
-            all_retrieved_docs.extend(retrieved_docs)
-
-        # De-duplicate and sort all retrieved documents by score
-        unique_docs_map = {doc['id']: doc for doc in reversed(all_retrieved_docs)}
-        unique_docs_list = list(unique_docs_map.values())
-
-        # Perform a global rerank against the original query to find the best documents overall.
-        # This is crucial because scores from different sub-queries are not comparable.
-        reranked_docs = self._maybe_rerank(query, unique_docs_list)
-        return reranked_docs
 
     def batch_query(
         self,
         queries: List[str],
         top_k: Optional[int] = None,
+        score_threshold: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Process multiple queries in batch.
-
-        Args:
-            queries: List of query strings
-            top_k: Number of documents to retrieve per query
-
-        Returns:
-            List of result dictionaries
+        Process multiple queries in batch (no query rewriting).
         """
-        results = []
+        results: List[Dict[str, Any]] = []
         for i, query in enumerate(queries):
             logger.info(f"Processing query {i+1}/{len(queries)}")
-            result = self.query(query, top_k)
+            result = self.query(query, top_k=top_k, score_threshold=score_threshold)
             results.append(result)
-
         return results

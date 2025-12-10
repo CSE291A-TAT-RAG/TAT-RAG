@@ -57,8 +57,8 @@ class QdrantConfig:
 class LLMConfig:
     """Large Language Model configuration."""
     # Provider: 'ollama', 'bedrock', or 'gemini'
-    provider: str = os.getenv("LLM_PROVIDER", "ollama")
-    model_name: str = os.getenv("LLM_MODEL", "qwen2.5:8b")
+    provider: str = os.getenv("LLM_PROVIDER", "bedrock")
+    model_name: str = os.getenv("LLM_MODEL", "anthropic.claude-haiku-4-5-20251001-v1:0")
     temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "1000"))
     request_interval: float = float(os.getenv("LLM_REQUEST_INTERVAL", "0"))

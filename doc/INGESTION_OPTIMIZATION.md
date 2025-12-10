@@ -96,3 +96,23 @@ The architecture achieves maximum efficiency through **Queue-based Decoupling**:
 该架构通过 **基于队列的解耦** 实现了最大效率：
 *   **Queue 1** 隔离了 GPU 和 CPU，使 GPU 无需等待哈希计算。
 *   **Queue 2** 隔离了 CPU 和网络，使 CPU 无需等待数据库响应。
+
+3.2. Pipeline Optimization Strategy
+Our system achieves high-performance data ingestion through a two-tiered optimization strategy targeting both micro-level computation and macro-level concurrency.
+
+1. Length-Aware Batching (Eliminating Computational Bubbles) Standard random batching of variable-length text results in significant tensor sparsity, as short sequences must be padded to match the length of the longest sequence in the batch. These padding tokens consume GPU cycles without contributing to the output, effectively creating computational "bubbles." To address this, we implemented a Sorting Buffer prior to inference. Incoming text chunks are pooled and sorted by token count. We then construct batches using sequences of uniform length. This approach minimizes the padding required per batch, ensuring that the GPU’s Tensor Cores are utilized for valid data processing rather than masking operations.
+
+2. Asynchronous Producer-Consumer Architecture (Pipelining) In a naive synchronous pipeline, the GPU is often idle while waiting for database write acknowledgement. We resolve this by decoupling the Compute (Producer) and I/O (Consumer) stages via a thread-safe Decoupling Queue.
+
+The Producer (GPU) pushes generated vectors to the queue and immediately proceeds to the next inference batch, maintaining 100% compute utilization.
+
+The Consumer (I/O) concurrently pulls vectors from the queue and performs bulk upserts to the vector database. This pipelined architecture hides the latency of network I/O, ensuring that the total throughput is limited only by the slower of the two stages, rather than their sum.
+
+
+Figure A (Baseline):
+
+"Illustration of a naive synchronous pipeline. Random batching necessitates excessive padding (red areas), and the sequential dependency between the GPU and Database creates blocking cycles where compute resources remain idle."
+
+Figure B (Optimized):
+
+"The proposed decoupled architecture. (1) The Sorting Buffer arranges sequences by length, minimizing padding overhead during inference. (2) The Decoupling Queue enables asynchronous execution, allowing the GPU to process subsequent batches while the I/O worker handles database persistence in parallel."
