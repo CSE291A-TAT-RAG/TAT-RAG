@@ -31,3 +31,10 @@ tqdm>=4.66.0
 
 # Web interface
 streamlit>=1.30.0
+
+# PDF parsing & table extraction for chunking
+pymupdf4llm>=0.0.17
+PyMuPDF>=1.24.9
+tabula-py>=2.9.0
+jpype1>=1.5.0
+tiktoken>=0.7.0

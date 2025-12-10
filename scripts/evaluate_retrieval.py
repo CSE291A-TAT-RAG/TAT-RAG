@@ -9,7 +9,6 @@ import io
 import json
 import logging
 import sys
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -30,6 +29,17 @@ def normalize_text(value: str) -> str:
     if not value:
         return ""
     return " ".join(value.split()).lower()
+
+
+def fuzzy_overlap_ratio(text_a: str, text_b: str) -> float:
+    """Compute a len-weighted similarity ratio for fuzzy span alignment."""
+    from difflib import SequenceMatcher
+
+    a = normalize_text(text_a)
+    b = normalize_text(text_b)
+    if not a or not b:
+        return 0.0
+    return SequenceMatcher(None, a, b).ratio()
 
 
 def normalize_path(value: str) -> str:
@@ -94,38 +104,6 @@ def load_reference_text(path_str: str, repo_root: Path) -> Optional[str]:
             if candidate.suffix.lower() == ".csv":
                 return _read_csv_from_path(candidate)
             return candidate.read_text(encoding="utf-8")
-
-    archive_candidates = [
-        repo_root / "data" / "chunks_all.zip",
-        repo_root / "chunks_all.zip",
-    ]
-    zip_entry_names: List[str] = []
-    for variant in normalized_variants:
-        zip_entry_names.append(variant.lstrip("./"))
-        zip_entry_names.append(("/" + variant).lstrip("./"))
-    zip_entry_names.append(path_str.replace("\\", "/").lstrip("./"))
-    zip_entry_names = [name for name in zip_entry_names if name]
-    zip_entry_names = list(dict.fromkeys(zip_entry_names))
-
-    for archive_path in archive_candidates:
-        if not archive_path.exists():
-            continue
-        try:
-            with zipfile.ZipFile(archive_path) as archive:
-                namelist = set(archive.namelist())
-                for name in zip_entry_names:
-                    candidate_name = name
-                    if candidate_name.startswith("/"):
-                        candidate_name = candidate_name[1:]
-                    if candidate_name in namelist:
-                        with archive.open(candidate_name) as handle:
-                            data = handle.read().decode("utf-8")
-                        if candidate_name.lower().endswith(".csv"):
-                            return _read_csv_text_from_string(data)
-                        return data
-        except zipfile.BadZipFile:
-            logger.warning("Invalid zip archive when loading golden reference: %s", archive_path)
-            continue
 
     return None
 
@@ -202,7 +180,11 @@ def load_golden_set(golden_path: Path) -> List[QuerySample]:
     return samples
 
 
-def match_doc_to_gold(doc: Dict[str, Any], gold_items: Sequence[GoldItem]) -> Optional[int]:
+def match_doc_to_gold(
+    doc: Dict[str, Any],
+    gold_items: Sequence[GoldItem],
+    fuzzy_threshold: float,
+) -> Optional[int]:
     doc_text = normalize_text(doc.get("content", ""))
     metadata = doc.get("metadata") or {}
 
@@ -210,9 +192,11 @@ def match_doc_to_gold(doc: Dict[str, Any], gold_items: Sequence[GoldItem]) -> Op
         if item.normalized_text and doc_text:
             if item.normalized_text in doc_text or doc_text in item.normalized_text:
                 return item.index
+            if fuzzy_overlap_ratio(item.normalized_text, doc_text) >= fuzzy_threshold:
+                return item.index
 
     meta_strings: List[str] = []
-    for key in ("table_path", "source", "doc_id", "section_path"):
+    for key in ("table_path", "table_title", "source", "doc_id", "section_path"):
         value = metadata.get(key)
         if isinstance(value, str):
             meta_strings.append(normalize_path(value))
@@ -234,32 +218,46 @@ def evaluate_query(
     retrieved_docs: List[Dict[str, Any]],
     gold_items: Sequence[GoldItem],
     k_values: Sequence[int],
+    fuzzy_threshold: float,
 ) -> Dict[str, Any]:
+    max_k = max(k_values) if k_values else 0
     total_gold = sum(1 for item in gold_items if item.normalized_text or item.file_name)
     if total_gold == 0:
         return {
             "precision_at_k": {k: 0.0 for k in k_values},
             "recall_at_k": {k: 0.0 for k in k_values},
+            "evidence_recall_at_k": {k: 0.0 for k in k_values},
+            "covered_at_k": {k: 0 for k in k_values},
+            "total_gold": 0,
+            "per_query_evidence_coverage": 0.0,
+            "full_coverage_flags": {k: 0.0 for k in k_values},
             "average_precision": 0.0,
             "mrr": 0.0,
             "hit": 0.0,
             "matched": 0,
             "retrieved": len(retrieved_docs),
+            "hit_at_k": {k: 0.0 for k in k_values},
         }
 
     matches: List[Optional[int]] = []
     for doc in retrieved_docs:
-        matches.append(match_doc_to_gold(doc, gold_items))
+        matches.append(match_doc_to_gold(doc, gold_items, fuzzy_threshold))
 
     precision_at_k: Dict[int, float] = {}
     recall_at_k: Dict[int, float] = {}
+    covered_at_k: Dict[int, int] = {}
+    full_coverage_flags: Dict[int, float] = {}
+    hit_flags: Dict[int, float] = {}
     for k in k_values:
         top_matches = matches[:k]
         denom = min(k, len(matches))
         relevant = sum(1 for match in top_matches if match is not None)
         precision_at_k[k] = relevant / denom if denom else 0.0
         unique_hits = {match for match in top_matches if match is not None}
-        recall_at_k[k] = len(unique_hits) / total_gold if total_gold else 0.0
+        covered_at_k[k] = len(unique_hits)
+        recall_at_k[k] = covered_at_k[k] / total_gold if total_gold else 0.0
+        full_coverage_flags[k] = 1.0 if covered_at_k[k] >= total_gold and total_gold > 0 else 0.0
+        hit_flags[k] = 1.0 if relevant > 0 else 0.0
 
     ap = 0.0
     seen_for_ap: set[int] = set()
@@ -278,16 +276,24 @@ def evaluate_query(
             reciprocal_rank = 1.0 / rank
             break
 
-    seen_unique = {match for match in matches if match is not None}
+    per_query_coverage = covered_at_k.get(max_k, 0) / total_gold if total_gold else 0.0
+
     return {
         "precision_at_k": precision_at_k,
         "recall_at_k": recall_at_k,
+        "evidence_recall_at_k": recall_at_k,
+        "covered_at_k": covered_at_k,
+        "total_gold": total_gold,
         "average_precision": average_precision,
         "mrr": reciprocal_rank,
         "hit": 1.0 if reciprocal_rank > 0 else 0.0,
-        "matched": len(seen_unique),
+        "matched": covered_at_k.get(max_k, 0),
         "retrieved": len(retrieved_docs),
         "match_sequence": matches,
+        "gold_coverage": per_query_coverage,
+        "per_query_evidence_coverage": per_query_coverage,
+        "full_coverage_flags": full_coverage_flags,
+        "hit_at_k": hit_flags,
     }
 
 
@@ -298,24 +304,45 @@ def aggregate_metrics(per_query: List[Dict[str, Any]], k_values: Sequence[int]) 
 
     precision_totals = {k: 0.0 for k in k_values}
     recall_totals = {k: 0.0 for k in k_values}
+    covered_totals = {k: 0.0 for k in k_values}
+    full_coverage_totals = {k: 0.0 for k in k_values}
+    hit_at_k_totals = {k: 0.0 for k in k_values}
     map_total = 0.0
     mrr_total = 0.0
     hit_total = 0.0
+    coverage_total = 0.0
+    total_gold = 0.0
 
     for result in per_query:
         for k in k_values:
             precision_totals[k] += result["precision_at_k"][k]
             recall_totals[k] += result["recall_at_k"][k]
+            covered_totals[k] += result.get("covered_at_k", {}).get(k, 0)
+            full_coverage_totals[k] += result.get("full_coverage_flags", {}).get(k, 0.0)
+            hit_at_k_totals[k] += result.get("hit_at_k", {}).get(k, 0.0)
         map_total += result["average_precision"]
         mrr_total += result["mrr"]
         hit_total += result["hit"]
+        coverage_total += result.get("gold_coverage", 0.0)
+        total_gold += result.get("total_gold", 0.0)
 
     summary = {
         "precision_at_k": {k: precision_totals[k] / total_queries for k in k_values},
         "recall_at_k": {k: recall_totals[k] / total_queries for k in k_values},
+        "evidence_recall_at_k": {
+            k: (covered_totals[k] / total_gold) if total_gold else 0.0 for k in k_values
+        },
         "mean_average_precision": map_total / total_queries,
         "mean_reciprocal_rank": mrr_total / total_queries,
         "hit_rate": hit_total / total_queries,
+        "hit_rate_at_k": {k: hit_at_k_totals[k] / total_queries for k in k_values},
+        "avg_gold_coverage": coverage_total / total_queries,
+        "per_query_evidence_coverage": {
+            k: recall_totals[k] / total_queries for k in k_values
+        },
+        "full_coverage_rate": {
+            k: full_coverage_totals[k] / total_queries for k in k_values
+        },
     }
     return summary
 
@@ -354,6 +381,12 @@ def parse_args() -> argparse.Namespace:
         "--rewrite",
         action="store_true",
         help="Enable query rewriting (decomposition) before retrieval.",
+    )
+    parser.add_argument(
+        "--fuzzy-threshold",
+        type=float,
+        default=0.7,
+        help="Similarity ratio (0-1) required to count a retrieved chunk as covering a gold evidence span.",
     )
     return parser.parse_args()
 
@@ -398,7 +431,7 @@ def main() -> None:
                 sample.query, top_k=retrieval_k, score_threshold=score_threshold
             )
 
-        evaluation = evaluate_query(retrieved, sample.gold_items, k_values)
+        evaluation = evaluate_query(retrieved, sample.gold_items, k_values, args.fuzzy_threshold)
         per_query_results.append(evaluation)
 
         if args.save_details:
@@ -425,21 +458,48 @@ def main() -> None:
 
     summary = aggregate_metrics(per_query_results, k_values)
 
+    precision_at_5 = summary["precision_at_k"].get(5)
+    evidence_recall_at_3 = summary["evidence_recall_at_k"].get(3, 0.0)
+    evidence_recall_at_10 = summary["evidence_recall_at_k"].get(10, 0.0)
+    per_query_coverage_at_3 = summary["per_query_evidence_coverage"].get(3, 0.0)
+    per_query_coverage_at_10 = summary["per_query_evidence_coverage"].get(10, 0.0)
+    full_coverage_rate_at_3 = summary["full_coverage_rate"].get(3, 0.0)
+    full_coverage_rate_at_10 = summary["full_coverage_rate"].get(10, 0.0)
+    hit_rate_at_10 = summary.get("hit_rate_at_k", {}).get(10, 0.0)
+
+    filtered_summary: Dict[str, Any] = {
+        "precision_at_5": precision_at_5,
+        "evidence_recall_at_3": evidence_recall_at_3,
+        "evidence_recall_at_10": evidence_recall_at_10,
+        "per_query_coverage_at_3": per_query_coverage_at_3,
+        "per_query_coverage_at_10": per_query_coverage_at_10,
+        "full_coverage_rate_at_3": full_coverage_rate_at_3,
+        "full_coverage_rate_at_10": full_coverage_rate_at_10,
+        "mean_average_precision": summary["mean_average_precision"],
+        "mean_reciprocal_rank": summary["mean_reciprocal_rank"],
+        "hit_rate_at_10": hit_rate_at_10,
+    }
+
     print("\nRetrieval Evaluation Summary")
     print("=" * 32)
-    for k in k_values:
-        print(f"Precision@{k}: {summary['precision_at_k'][k]:.4f}")
-        print(f"Recall@{k}:    {summary['recall_at_k'][k]:.4f}")
-    print(f"MAP:            {summary['mean_average_precision']:.4f}")
-    print(f"MRR:            {summary['mean_reciprocal_rank']:.4f}")
-    print(f"Hit Rate:       {summary['hit_rate']:.4f}")
+    if precision_at_5 is not None:
+        print(f"Precision@5:    {precision_at_5:.4f}")
+    print(f"EvidenceRecall@3:     {evidence_recall_at_3:.4f}")
+    print(f"EvidenceRecall@10:    {evidence_recall_at_10:.4f}")
+    print(f"PerQueryCoverage@3:   {per_query_coverage_at_3:.4f}")
+    print(f"PerQueryCoverage@10:  {per_query_coverage_at_10:.4f}")
+    print(f"FullCoverageRate@3:   {full_coverage_rate_at_3:.4f}")
+    print(f"FullCoverageRate@10:  {full_coverage_rate_at_10:.4f}")
+    print(f"MAP:            {filtered_summary['mean_average_precision']:.4f}")
+    print(f"MRR:            {filtered_summary['mean_reciprocal_rank']:.4f}")
+    print(f"HitRate@10:     {hit_rate_at_10:.4f}")
 
     if args.save_details:
         args.save_details.parent.mkdir(parents=True, exist_ok=True)
         with args.save_details.open("w", encoding="utf-8") as handle:
             json.dump(
                 {
-                    "summary": summary,
+                    "summary": filtered_summary,
                     "details": detailed_rows,
                 },
                 handle,

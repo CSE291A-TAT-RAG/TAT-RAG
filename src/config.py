@@ -125,14 +125,14 @@ class RerankConfig:
 @dataclass
 class RAGConfig:
     """RAG pipeline configuration."""
-    top_k: int = int(os.getenv("RAG_TOP_K", "15"))
-    score_threshold: float = float(os.getenv("RAG_SCORE_THRESHOLD", "0.5"))  # Minimum similarity score
+    top_k: int = int(os.getenv("RAG_TOP_K", "20"))
+    score_threshold: float = float(os.getenv("RAG_SCORE_THRESHOLD", "0.1"))  # Minimum similarity score
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1000"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "200"))
     hybrid_search: bool = _get_bool_env("HYBRID_SEARCH_ENABLED", False)
-    hybrid_prefetch: int = int(os.getenv("HYBRID_PREFETCH_LIMIT", "20"))
+    hybrid_prefetch: int = int(os.getenv("HYBRID_PREFETCH_LIMIT", "50"))
     final_context_limit: int = int(os.getenv("RAG_FINAL_CONTEXT_LIMIT", "5"))
-    max_chunks_per_doc: Optional[int] = _get_optional_int_env("RAG_MAX_CHUNKS_PER_DOC")
+    max_chunks_per_doc: Optional[int] = None
 
     qdrant: QdrantConfig = None
     llm: LLMConfig = None

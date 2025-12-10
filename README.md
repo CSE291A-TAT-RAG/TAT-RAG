@@ -30,15 +30,20 @@ docker-compose up -d
 # (Optional) Reset Qdrant collection before re-ingesting
 docker-compose exec rag-app python -c "from qdrant_client import QdrantClient; QdrantClient(host='qdrant', port=6333).delete_collection('documents')"
 
-# 3. Ingest pre-chunked data (JSONL + CSV packed in a zip)
-docker-compose exec rag-app python main.py ingest /app/data/chunks_all.zip
+# 3. (If you need to create chunks from PDFs) Run the chunker
+# Make sure docker-compose mounts your PDFs: ./tat_docs_test -> /app/tat_docs_test
+docker-compose run --rm -w /app/scripts rag-app python chunking.py
+# Output: /app/data/chunks_all.jsonl and /app/data/csvs/
 
-# 4. Run a query from the CLI
+# 4. Ingest pre-chunked data (JSONL + CSVs on disk)
+docker-compose exec rag-app python main.py ingest /app/data/chunks_all.jsonl
+
+# 5. Run a query from the CLI
 docker-compose exec rag-app python main.py query \
   --top-k 5 \
   "What is the A10 Networks' total cost of revenue in 2019?"
 
-# 5. (Optional) Open the Streamlit chat UI
+# 6. (Optional) Open the Streamlit chat UI
 docker-compose exec rag-app streamlit run app.py --server.port 8501 --server.address 0.0.0.0
 # visit http://localhost:8501
 ```
@@ -55,8 +60,9 @@ docker-compose exec rag-app streamlit run app.py --server.port 8501 --server.add
 # Evaluate retriever
 docker-compose exec rag-app python scripts/evaluate_retrieval.py \
   --golden-path requests/requests.json \
-  --top-k 10 --k-values 1 3 5 10
-  #--rewrite
+  --top-k 10 --k-values 1 3 5 10 \
+  --save-details /app/output/retrieval_details.json \
+  --rewrite
 
 
 # Evaluate with request.json

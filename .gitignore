@@ -25,7 +25,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
+data/
+tat_docs_test/
 # Virtual environments
 .venv/
 venv/

@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libmupdf-dev \
     mupdf-tools \
+    default-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

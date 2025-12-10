@@ -1,12 +1,13 @@
 """Optimized data ingestion module for RTX 4090 - 3-5x faster hybrid search embedding."""
 
 import logging
+import os
+from pathlib import Path
 from queue import Queue, Full, Empty
 from typing import List, Dict, Any, Tuple, Optional, Generator, Set
 import uuid
 import hashlib
 import json
-import zipfile
 import io
 import csv
 import time
@@ -200,15 +201,14 @@ class DocumentIngestion:
                     exc,
                 )
 
-    def load_chunks_from_zip(
-        self, zip_path: str
+    def load_chunks_from_jsonl(
+        self, jsonl_path: str
     ) -> Tuple[Set[str], Generator[Dict[str, Any], None, None], int]:
         """
-        Load and yield pre-created chunks from a zip archive in a memory-efficient way.
-        Performs a first pass to gather metadata (sources, counts) before yielding chunks.
+        Load and yield pre-created chunks from a JSONL file on disk.
 
         Args:
-            zip_path: Path to the zip archive
+            jsonl_path: Path to the JSONL file
 
         Returns:
             A tuple containing:
@@ -216,110 +216,107 @@ class DocumentIngestion:
             - A generator that yields chunk dictionaries.
             - The total number of chunks.
         """
-        logger.info(f"Scanning pre-chunked data from zip archive: {zip_path}")
+        logger.info(f"Scanning pre-chunked data from jsonl: {jsonl_path}")
 
         sources: Set[str] = set()
         chunk_counts_by_doc: Dict[str, int] = {}
         total_chunks = 0
 
-        try:
-            with zipfile.ZipFile(zip_path) as archive:
-                with archive.open("chunks_all.jsonl") as jsonl_entry:
-                    for raw_line in jsonl_entry:
-                        if not raw_line.strip():
-                            continue
-                        total_chunks += 1
-                        record = json.loads(raw_line.decode("utf-8-sig"))
-                        metadata = record.get("metadata", {})
-                        doc_id = metadata.get("doc_id", "unknown")
-                        source = metadata.get("source", doc_id)
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                total_chunks += 1
+                record = json.loads(line)
+                metadata = record.get("metadata", {})
+                doc_id = metadata.get("doc_id", "unknown")
+                source = metadata.get("source", doc_id)
 
-                        sources.add(source)
-                        chunk_counts_by_doc[doc_id] = chunk_counts_by_doc.get(
-                            doc_id, 0
-                        ) + 1
-        except KeyError as exc:
-            raise FileNotFoundError(
-                "Expected 'chunks_all.jsonl' inside archive"
-            ) from exc
+                sources.add(source)
+                chunk_counts_by_doc[doc_id] = chunk_counts_by_doc.get(doc_id, 0) + 1
 
         logger.info(
             f"Scan complete. Found {total_chunks} chunks across {len(chunk_counts_by_doc)} documents from {len(sources)} sources."
         )
 
         def chunk_generator() -> Generator[Dict[str, Any], None, None]:
-            logger.info(f"Streaming {total_chunks} chunks from {zip_path}...")
+            logger.info(f"Streaming {total_chunks} chunks from {jsonl_path}...")
             chunk_indices_by_doc: Dict[str, int] = {}
 
-            try:
-                with zipfile.ZipFile(zip_path) as archive:
-                    with archive.open("chunks_all.jsonl") as jsonl_entry:
-                        for raw_line in jsonl_entry:
-                            if not raw_line.strip():
-                                continue
-                            record = json.loads(raw_line.decode("utf-8-sig"))
-                            metadata = dict(record.get("metadata", {}))
-                            doc_id = metadata.get("doc_id", "unknown")
-                            content = record.get("text", "")
+            with open(jsonl_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    record = json.loads(line)
+                    metadata = dict(record.get("metadata", {}))
+                    doc_id = metadata.get("doc_id", "unknown")
+                    content = record.get("text", "")
 
-                            metadata.setdefault("source", doc_id)
-                            metadata.setdefault("parser", "prechunked")
-                            company, fiscal_year = self._parse_doc_id(doc_id)
-                            if company and "company" not in metadata:
-                                metadata["company"] = company
-                            if fiscal_year and "fiscal_year" not in metadata:
-                                metadata["fiscal_year"] = fiscal_year
+                    metadata.setdefault("source", doc_id)
+                    metadata.setdefault("parser", "prechunked")
+                    company, fiscal_year = self._parse_doc_id(doc_id)
+                    if company and "company" not in metadata:
+                        metadata["company"] = company
+                    if fiscal_year and "fiscal_year" not in metadata:
+                        metadata["fiscal_year"] = fiscal_year
 
-                            chunk_index = chunk_indices_by_doc.get(doc_id, 0)
-                            metadata["chunk_id"] = chunk_index
-                            metadata["total_chunks"] = chunk_counts_by_doc.get(
-                                doc_id, 0
-                            )
-                            chunk_indices_by_doc[doc_id] = chunk_index + 1
+                    chunk_index = chunk_indices_by_doc.get(doc_id, 0)
+                    metadata["chunk_id"] = chunk_index
+                    metadata["total_chunks"] = chunk_counts_by_doc.get(doc_id, 0)
+                    chunk_indices_by_doc[doc_id] = chunk_index + 1
 
-                            raw_content = content
+                    raw_content = content
 
-                            if metadata.get("type") == "table" and raw_content:
-                                table_path = raw_content
-                                metadata["table_path"] = table_path
-                                try:
-                                    with archive.open(table_path) as table_file:
-                                        table_text = io.TextIOWrapper(
-                                            table_file, encoding="utf-8", newline=""
-                                        )
-                                        reader = csv.reader(table_text)
-                                        rows = [
-                                            " | ".join(cell.strip() for cell in row)
-                                            for row in reader
-                                        ]
-                                        rows = [row for row in rows if row]
-                                        raw_content = "\n".join(rows)
-                                except KeyError:
-                                    logger.warning(
-                                        "Missing table CSV '%s' referenced in JSONL",
-                                        table_path,
-                                    )
-                                    raw_content = ""
+                    if metadata.get("type") == "table" and raw_content:
+                        table_csv_path = metadata.get("table_csv_path")
+                        table_path = table_csv_path or raw_content
 
-                            context_header = self._build_context_header(
-                                metadata, doc_id
-                            )
-                            if context_header:
-                                metadata.setdefault("context_header", context_header)
+                        # Normalize container-style paths (/app/data/...) to local data/...
+                        if isinstance(table_path, str) and table_path.startswith("/app/data/"):
+                            local_path = table_path.replace("/app/data/", "data/")
+                        else:
+                            local_path = table_path
 
-                            embedding_text = self._add_metadata_context(
-                                raw_content, metadata, doc_id
-                            )
+                        if isinstance(table_path, str):
+                            metadata.setdefault("table_path", table_path)
 
-                            yield {
-                                "content": raw_content,
-                                "embedding_content": embedding_text,
-                                "metadata": metadata,
-                            }
-            except KeyError as exc:
-                raise FileNotFoundError(
-                    "Expected 'chunks_all.jsonl' inside archive"
-                ) from exc
+                        if isinstance(local_path, str) and os.path.exists(local_path):
+                            try:
+                                with open(local_path, "r", encoding="utf-8") as table_file:
+                                    reader = csv.reader(table_file)
+                                    rows = [
+                                        " | ".join(cell.strip() for cell in row)
+                                        for row in reader
+                                    ]
+                                    rows = [row for row in rows if row]
+                                    raw_content = "\n".join(rows)
+                            except FileNotFoundError:
+                                logger.warning(
+                                    "Missing table CSV '%s' referenced in JSONL", local_path
+                                )
+                                raw_content = ""
+
+                    context_header = self._build_context_header(metadata, doc_id)
+                    if context_header:
+                        metadata.setdefault("context_header", context_header)
+
+                    # Include metadata header in content to help BM25/Hybrid, especially for tables
+                    content_with_header = raw_content
+                    if context_header:
+                        if raw_content:
+                            content_with_header = f"{context_header}\n\n{raw_content}"
+                        else:
+                            content_with_header = context_header
+
+                    embedding_text = self._add_metadata_context(
+                        content_with_header, metadata, doc_id
+                    )
+
+                    yield {
+                        "content": content_with_header,
+                        "embedding_content": embedding_text,
+                        "metadata": metadata,
+                    }
 
         return sources, chunk_generator(), total_chunks
 
@@ -743,7 +740,7 @@ class DocumentIngestion:
         Complete ingestion pipeline: load, chunk, embed, and store.
 
         Args:
-            path: Path to zip archive containing pre-chunked data
+            path: Path to jsonl file containing pre-chunked data
             overwrite: If True, replace existing chunks from the same source (default: True)
 
         Returns:
@@ -753,13 +750,17 @@ class DocumentIngestion:
             f"Starting optimized ingestion pipeline for: {path} "
             f"(overwrite={overwrite}, GPU=RTX 4090)"
         )
-        if not path.lower().endswith(".zip"):
+        suffix = Path(path).suffix.lower()
+
+        if suffix != ".jsonl":
             raise ValueError(
-                "Only zip archives containing pre-chunked data are supported. Please provide a .zip file."
+                "Only .jsonl archives containing pre-chunked data are supported. "
+                "Please provide a .jsonl file."
             )
 
-        chunks_data = self.load_chunks_from_zip(path)
+        chunks_data = self.load_chunks_from_jsonl(path)
+
         count = self.store_chunks(chunks_data, overwrite=overwrite)
 
-        logger.info(f"🎉 Ingestion complete. Stored {count} chunks.")
+        logger.info(f"?? Ingestion complete. Stored {count} chunks.")
         return count

@@ -100,7 +100,7 @@ def verify_hybrid_search():
 
         if not sample_points:
             print("⚠️  No points found in the collection.")
-            print("   Please ingest data first: docker-compose exec rag-app python main.py ingest /app/data/chunks_all.zip")
+            print("   Please ingest data first: docker-compose exec rag-app python main.py ingest /app/data/chunks_all.jsonl")
             return
 
         print(f"Checking {len(sample_points)} sample point(s)...\n")
